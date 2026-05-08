@@ -28,6 +28,8 @@ export default function SettingsClient({ user, profile, baby, role, caregivers }
   const [saved, setSaved] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviting, setInviting] = useState(false)
+  const [inviteLink, setInviteLink] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [photoUrl, setPhotoUrl] = useState((baby?.photo_url as string) ?? '')
 
@@ -70,7 +72,7 @@ export default function SettingsClient({ user, profile, baby, role, caregivers }
     }).select().single()
     if (invite) {
       const link = `${window.location.origin}/invite?token=${invite.token}`
-      alert(`Invite link (share this with your partner):\n\n${link}`)
+      setInviteLink(link)
     }
     setInviteEmail('')
     setInviting(false)
@@ -206,6 +208,25 @@ export default function SettingsClient({ user, profile, baby, role, caregivers }
                 <UserPlus size={15} /> Invite
               </button>
             </div>
+            {inviteLink && (
+              <div className="mt-2 bg-rose-50 rounded-xl p-3 space-y-2">
+                <p className="text-xs text-rose-700 font-medium">Share this link with your partner:</p>
+                <div className="flex gap-2 items-center">
+                  <input
+                    readOnly
+                    value={inviteLink}
+                    className="flex-1 text-xs bg-white border border-rose-200 rounded-lg px-2 py-1.5 text-gray-700 select-all"
+                    onFocus={(e) => e.target.select()}
+                  />
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(inviteLink); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+                    className="text-xs bg-rose-500 text-white px-3 py-1.5 rounded-lg hover:bg-rose-600 transition whitespace-nowrap"
+                  >
+                    {copied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

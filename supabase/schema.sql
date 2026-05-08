@@ -79,6 +79,11 @@ create policy "Caregivers can view baby"
     )
   );
 
+-- Creator can see baby immediately after insert (before caregiver record exists)
+create policy "Creator can view baby"
+  on public.babies for select
+  using (created_by = auth.uid());
+
 create policy "Caregivers can update baby"
   on public.babies for update
   using (
@@ -92,6 +97,22 @@ create policy "Users can create babies"
   on public.babies for insert
   with check (created_by = auth.uid());
 
+-- Security definer function to check ownership without triggering RLS recursion
+create or replace function public.is_baby_owner(p_baby_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.baby_caregivers
+    where baby_id = p_baby_id
+      and user_id = auth.uid()
+      and role = 'owner'
+  );
+$$;
+
 -- Caregivers can see their own caregiver records
 create policy "Users can view own caregiver records"
   on public.baby_caregivers for select
@@ -99,14 +120,7 @@ create policy "Users can view own caregiver records"
 
 create policy "Owners can manage caregivers"
   on public.baby_caregivers for all
-  using (
-    exists (
-      select 1 from public.baby_caregivers bc
-      where bc.baby_id = baby_caregivers.baby_id
-        and bc.user_id = auth.uid()
-        and bc.role = 'owner'
-    )
-  );
+  using (public.is_baby_owner(baby_id));
 
 create policy "Users can insert own caregiver record"
   on public.baby_caregivers for insert
