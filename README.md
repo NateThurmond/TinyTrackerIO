@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TinyTrackerIO
 
-## Getting Started
+TinyTrackerIO is a mobile-first baby tracking app for shared caregivers.
 
-First, run the development server:
+Track feedings, diapers, sleep, and weight with a fast one-tap workflow, real-time updates, and Alexa voice logging.
+
+## Dashboard
+
+![TinyTrackerIO dashboard](docs/images/dashboard-home.png)
+
+## Current Features
+
+- Shared caregiver model ("The Village") with owner/caregiver roles
+- Feedings, diapers, sleeps, and weight tracking
+- Day view and history view with edit/delete support
+- Live updates + resume refresh when returning to the app
+- Push notifications between caregivers (home-screen app / PWA)
+- Alexa custom skill integration for hands-free logging
+- Invite links for adding caregivers
+- Baby profile photo uploads
+- CSV/JSON data export
+
+## Tech Stack
+
+- Next.js App Router + TypeScript
+- Supabase (Postgres, Auth, Storage, RLS)
+- Tailwind CSS
+- Vercel deployment
+
+## Local Development
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Create `.env.local` with your project variables:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+
+# Alexa (optional)
+ALEXA_SKILL_ID=...
+ALEXA_USER_ID=...
+ALEXA_BABY_ID=...
+
+# Web Push (optional)
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+```
+
+3. Run the app:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Supabase Notes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- RLS policies are enabled across core tables.
+- `push_subscriptions` is used for caregiver push fan-out.
+- Storage bucket `baby-photos` is used for banner/profile images.
 
-## Learn More
+## Deployment
 
-To learn more about Next.js, take a look at the following resources:
+Production is deployed on Vercel.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Typical deploy command:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npx vercel@latest --prod --yes
+```
 
-## Deploy on Vercel
+## Alexa Integration
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The Alexa skill posts to:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `/api/alexa`
+
+Supported intents include diaper, feeding, and sleep logging.
+
+## License
+
+Private project.
