@@ -30,18 +30,18 @@ export default function EditDiaperClient({ diaper }: { diaper: Diaper }) {
       updated_at: new Date().toISOString(),
     }).eq('id', diaper.id)
     setLoading(false)
-    router.push('/history?tab=diaper')
+    router.push('/')
   }
 
   async function handleDelete() {
     await supabase.from('diapers').delete().eq('id', diaper.id)
-    router.push('/history?tab=diaper')
+    router.push('/')
   }
 
   return (
     <div className="min-h-screen bg-rose-50">
       <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
-        <Link href="/history?tab=diaper" className="text-gray-500 hover:text-gray-800">
+        <Link href="/" className="text-gray-500 hover:text-gray-800">
           <ArrowLeft size={20} />
         </Link>
         <h1 className="font-bold text-gray-800 flex-1">Edit Diaper</h1>

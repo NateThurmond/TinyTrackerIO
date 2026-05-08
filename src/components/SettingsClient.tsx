@@ -41,16 +41,20 @@ export default function SettingsClient({ user, profile, baby, role, caregivers }
     if (typeof window === 'undefined') return
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
     setPushSupported(true)
-    navigator.serviceWorker.ready.then(async (reg) => {
-      const sub = await reg.pushManager.getSubscription()
-      setPushEnabled(!!sub)
-    }).catch(() => {})
-  })
+    navigator.serviceWorker.register('/sw.js')
+      .then(() => navigator.serviceWorker.ready)
+      .then(async (reg) => {
+        const sub = await reg.pushManager.getSubscription()
+        setPushEnabled(!!sub)
+      })
+      .catch(() => {})
+  }, [])
 
   async function handlePushToggle() {
     setPushLoading(true)
     try {
       if (!('serviceWorker' in navigator)) return
+      await navigator.serviceWorker.register('/sw.js')
       const reg = await navigator.serviceWorker.ready
       if (pushEnabled) {
         const sub = await reg.pushManager.getSubscription()
@@ -58,6 +62,12 @@ export default function SettingsClient({ user, profile, baby, role, caregivers }
         await fetch('/api/push-subscription', { method: 'DELETE' })
         setPushEnabled(false)
       } else {
+        if (Notification.permission === 'default') {
+          const permission = await Notification.requestPermission()
+          if (permission !== 'granted') return
+        }
+        if (Notification.permission !== 'granted') return
+
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),

@@ -136,8 +136,20 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
   // Refresh when tab becomes visible again (catches missed realtime events)
   useEffect(() => {
     const onVisible = () => { if (document.visibilityState === 'visible') refreshToday() }
+    const onFocus = () => refreshToday()
+    const onPageShow = () => refreshToday()
+    const interval = window.setInterval(() => refreshToday(), 60000)
+
+    refreshToday()
     document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onFocus)
+    window.addEventListener('pageshow', onPageShow)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('pageshow', onPageShow)
+      window.clearInterval(interval)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baby.id])
 

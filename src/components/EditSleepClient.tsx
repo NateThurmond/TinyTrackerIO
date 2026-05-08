@@ -25,18 +25,18 @@ export default function EditSleepClient({ sleep }: { sleep: Sleep }) {
       updated_at: new Date().toISOString(),
     }).eq('id', sleep.id)
     setLoading(false)
-    router.push('/history?tab=sleep')
+    router.push('/')
   }
 
   async function handleDelete() {
     await supabase.from('sleeps').delete().eq('id', sleep.id)
-    router.push('/history?tab=sleep')
+    router.push('/')
   }
 
   return (
     <div className="min-h-screen bg-rose-50">
       <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
-        <Link href="/history?tab=sleep" className="text-gray-500 hover:text-gray-800">
+        <Link href="/" className="text-gray-500 hover:text-gray-800">
           <ArrowLeft size={20} />
         </Link>
         <h1 className="font-bold text-gray-800 flex-1">Edit Sleep</h1>
