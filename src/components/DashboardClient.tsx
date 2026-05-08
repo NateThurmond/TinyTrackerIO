@@ -6,7 +6,7 @@ import type { Baby, Profile, Feeding, Diaper, Sleep } from '@/lib/supabase/types
 import { formatAmount, parseToMl, mlToOz, formatTime, getDurationMinutes, formatDuration, getBabyAge } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Settings, Clock, History, Bell, LogOut, Plus, Moon, Sun, Droplets } from 'lucide-react'
+import { Settings, Clock, History, Bell, LogOut, Plus, Moon, Sun, Droplets, Camera } from 'lucide-react'
 
 interface Props {
   user: { id: string; email: string }
@@ -39,6 +39,11 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
 
   const [activeModal, setActiveModal] = useState<ActiveModal>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  // Photo upload
+  const photoRef = useRef<HTMLInputElement>(null)
+  const [photoUrl, setPhotoUrl] = useState<string>((baby.photo_url as string) ?? '')
+  const [photoUploading, setPhotoUploading] = useState(false)
 
   // Feeding form
   const [feedAmount, setFeedAmount] = useState('')
@@ -131,19 +136,34 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
     setActiveModal('sleep')
   }
 
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoUploading(true)
+    const ext = file.name.split('.').pop()
+    const path = `${baby.id}/photo.${ext}`
+    const { error } = await supabase.storage.from('baby-photos').upload(path, file, { upsert: true })
+    if (!error) {
+      const { data } = supabase.storage.from('baby-photos').getPublicUrl(path)
+      await supabase.from('babies').update({ photo_url: data.publicUrl }).eq('id', baby.id as string)
+      setPhotoUrl(data.publicUrl)
+    }
+    setPhotoUploading(false)
+  }
+
   return (
     <div className="min-h-screen bg-rose-50">
       {/* ── HEADER ─────────────────────────────────────── */}
       <header className="relative bg-gradient-to-br from-rose-400 to-rose-600 text-white overflow-hidden">
-        {baby.photo_url && (
+        {photoUrl && (
           <Image
-            src={baby.photo_url as string}
+            src={photoUrl}
             alt={baby.name as string}
             fill
             className="object-cover opacity-20"
           />
         )}
-        <div className="relative z-10 px-4 pt-6 pb-4">
+        <div className="relative z-10 px-4 pb-4" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}>
           <div className="flex items-start justify-between mb-3">
             <div>
               <h1 className="text-2xl font-bold">{baby.name as string}</h1>
@@ -152,6 +172,15 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
               )}
             </div>
             <div className="flex gap-3 items-center">
+              <button
+                onClick={() => photoRef.current?.click()}
+                disabled={photoUploading}
+                className="text-white/80 hover:text-white disabled:opacity-50"
+                title="Change banner photo"
+              >
+                {photoUploading ? <span className="text-xs">…</span> : <Camera size={20} />}
+              </button>
+              <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
               <Link href="/history" className="text-white/80 hover:text-white">
                 <History size={20} />
               </Link>

@@ -33,7 +33,6 @@ export default function EditFeedingClient({ feeding, unit }: { feeding: Feeding;
   }
 
   async function handleDelete() {
-    if (!confirm('Delete this feeding entry?')) return
     setDeleting(true)
     await supabase.from('feedings').delete().eq('id', feeding.id)
     router.push('/history?tab=feeding')

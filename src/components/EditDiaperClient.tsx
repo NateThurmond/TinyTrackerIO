@@ -34,7 +34,6 @@ export default function EditDiaperClient({ diaper }: { diaper: Diaper }) {
   }
 
   async function handleDelete() {
-    if (!confirm('Delete this diaper entry?')) return
     await supabase.from('diapers').delete().eq('id', diaper.id)
     router.push('/history?tab=diaper')
   }

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 
@@ -10,6 +10,11 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "TinyTrackerIO",
   description: "Baby tracking made easy — feeding, diapers, sleep",
+};
+
+export const viewport: Viewport = {
+  userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({

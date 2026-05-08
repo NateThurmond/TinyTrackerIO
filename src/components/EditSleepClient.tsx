@@ -29,7 +29,6 @@ export default function EditSleepClient({ sleep }: { sleep: Sleep }) {
   }
 
   async function handleDelete() {
-    if (!confirm('Delete this sleep entry?')) return
     await supabase.from('sleeps').delete().eq('id', sleep.id)
     router.push('/history?tab=sleep')
   }
