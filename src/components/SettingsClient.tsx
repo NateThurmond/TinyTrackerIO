@@ -267,7 +267,7 @@ export default function SettingsClient({ user, profile, baby, role, caregivers }
                       <p className="text-sm font-medium text-gray-800 leading-tight">{c.profiles?.display_name ?? c.profiles?.email ?? 'Unknown'}</p>
                       <p className="text-xs text-gray-400 capitalize">
                         {c.user_id === user.id && c.role === 'owner'
-                          ? '👑 Owner / Caregiver'
+                          ? 'Owner / Caregiver / Villiage Idiot #1'
                           : `🤝 Caregiver / Villiage Idiot #${idx + 1}`}
                       </p>
                     </div>
