@@ -9,6 +9,30 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      push_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          endpoint: string
+          p256dh: string
+          auth: string
+          enabled: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          endpoint: string
+          p256dh: string
+          auth: string
+          enabled?: boolean
+          created_at?: string
+        }
+        Update: {
+          enabled?: boolean
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           id: string

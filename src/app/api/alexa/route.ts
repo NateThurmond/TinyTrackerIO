@@ -16,6 +16,17 @@ const ALEXA_USER_ID = process.env.ALEXA_USER_ID!
 const ALEXA_BABY_ID = process.env.ALEXA_BABY_ID!
 const SKILL_ID = process.env.ALEXA_SKILL_ID!
 
+async function notifyVillage(babyId: string, loggedByUserId: string, title: string, body: string) {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://tinytrackerio.nathanthurmond.com'
+    await fetch(`${baseUrl}/api/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ babyId, loggedByUserId, title, body }),
+    })
+  } catch { /* non-critical */ }
+}
+
 function alexaResponse(text: string, endSession = true) {
   return NextResponse.json({
     version: '1.0',
@@ -86,6 +97,7 @@ export async function POST(req: NextRequest) {
   if (intentName === 'LogPee') {
     const size = normalizeDiaperSize(slots.Size?.value)
     await supabaseAdmin.from('diapers').insert({ baby_id: babyId, logged_by: userId, type: 'pee', size })
+    notifyVillage(babyId, userId, '💧 Pee logged', `Alexa logged a pee diaper for Benjamin`)
     return alexaResponse('Got it, pee logged!')
   }
 
@@ -94,12 +106,14 @@ export async function POST(req: NextRequest) {
     const size = normalizeDiaperSize(slots.Size?.value)
     const sizeWord = size === 'med' ? '' : ` ${size}`
     await supabaseAdmin.from('diapers').insert({ baby_id: babyId, logged_by: userId, type: 'poop', size })
+    notifyVillage(babyId, userId, '💩 Poop logged', `Alexa logged a${sizeWord} poop diaper for Benjamin`)
     return alexaResponse(`Got it,${sizeWord} poop logged!`)
   }
 
   // ── LogMixedDiaper ───────────────────────────────────
   if (intentName === 'LogMixedDiaper') {
     await supabaseAdmin.from('diapers').insert({ baby_id: babyId, logged_by: userId, type: 'mixed', size: 'med' })
+    notifyVillage(babyId, userId, '💩💧 Mixed diaper logged', `Alexa logged a mixed diaper for Benjamin`)
     return alexaResponse('Mixed diaper logged!')
   }
 
@@ -113,12 +127,14 @@ export async function POST(req: NextRequest) {
     const isOz = unitRaw.toLowerCase().includes('oz') || unitRaw.toLowerCase().includes('ounce')
     const amountMl = isOz ? ozToMl(rawAmount) : Math.round(rawAmount)
     await supabaseAdmin.from('feedings').insert({ baby_id: babyId, logged_by: userId, amount_ml: amountMl })
+    notifyVillage(babyId, userId, '🍼 Feeding logged', `Alexa logged ${rawAmount} ${isOz ? 'oz' : 'ml'} for Benjamin`)
     return alexaResponse(`Done! Logged ${rawAmount} ${isOz ? 'ounces' : 'milliliters'}.`)
   }
 
   // ── StartSleep ───────────────────────────────────────
   if (intentName === 'StartSleep') {
     await supabaseAdmin.from('sleeps').insert({ baby_id: babyId, logged_by: userId })
+    notifyVillage(babyId, userId, '😴 Sleep started', 'Alexa logged Benjamin is sleeping')
     return alexaResponse('Sleep started. Sweet dreams!')
   }
 

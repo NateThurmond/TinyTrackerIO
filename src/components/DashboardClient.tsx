@@ -81,6 +81,23 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
   const poopCount = diapers.filter((d) => d.type === 'poop' || d.type === 'mixed').length
   const totalSleepMin = sleeps.reduce((sum, s) => sum + getDurationMinutes(s.started_at, s.ended_at), 0)
 
+  // Register service worker for push notifications
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {})
+    }
+  }, [])
+
+  async function sendNotify(title: string, body: string) {
+    try {
+      await fetch('/api/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ babyId: baby.id, loggedByUserId: user.id, title, body }),
+      })
+    } catch { /* non-critical */ }
+  }
+
   // Real-time subscription
   useEffect(() => {
     const channel = supabase
@@ -147,6 +164,8 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
     setActiveModal(null)
     setSubmitting(false)
     await refreshToday()
+    const displayName = profile.display_name ?? user.email
+    sendNotify('🍼 Feeding logged', `${displayName} logged ${formatAmount(ml, unit)} for ${baby.name as string}`)
   }
 
   async function logDiaper() {
@@ -161,6 +180,9 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
     setActiveModal(null)
     setSubmitting(false)
     await refreshToday()
+    const displayName = profile.display_name ?? user.email
+    const label = diaperType === 'pee' ? '💧 Pee' : diaperType === 'poop' ? '💩 Poop' : '💩💧 Mixed'
+    sendNotify(`${label} logged`, `${displayName} changed ${baby.name as string}`)
   }
 
   async function logSleep() {
@@ -173,6 +195,9 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
     setActiveModal(null)
     setSubmitting(false)
     await refreshToday()
+    const displayName = profile.display_name ?? user.email
+    const sleepLabel = sleepAction === 'start' ? '😴 Sleep started' : '☀️ Baby woke up'
+    sendNotify(sleepLabel, `${displayName} logged for ${baby.name as string}`)
   }
 
   async function logWeight() {

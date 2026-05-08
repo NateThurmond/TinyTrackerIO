@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/lib/supabase/types'
-import { ArrowLeft, Camera, Download, UserPlus, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, Camera, Download, UserPlus, Trash2, Users, Bell, BellOff } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -32,6 +32,59 @@ export default function SettingsClient({ user, profile, baby, role, caregivers }
   const [copied, setCopied] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [photoUrl, setPhotoUrl] = useState((baby?.photo_url as string) ?? '')
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushSupported, setPushSupported] = useState(false)
+  const [pushLoading, setPushLoading] = useState(false)
+
+  // Check if push is already subscribed for this device
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+    setPushSupported(true)
+    navigator.serviceWorker.ready.then(async (reg) => {
+      const sub = await reg.pushManager.getSubscription()
+      setPushEnabled(!!sub)
+    }).catch(() => {})
+  })
+
+  async function handlePushToggle() {
+    setPushLoading(true)
+    try {
+      if (!('serviceWorker' in navigator)) return
+      const reg = await navigator.serviceWorker.ready
+      if (pushEnabled) {
+        const sub = await reg.pushManager.getSubscription()
+        if (sub) await sub.unsubscribe()
+        await fetch('/api/push-subscription', { method: 'DELETE' })
+        setPushEnabled(false)
+      } else {
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+        })
+        const json = sub.toJSON()
+        await fetch('/api/push-subscription', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subscription: { endpoint: json.endpoint, keys: json.keys } }),
+        })
+        setPushEnabled(true)
+      }
+    } catch (e) {
+      console.error('Push toggle failed', e)
+    } finally {
+      setPushLoading(false)
+    }
+  }
+
+  function urlBase64ToUint8Array(base64String: string) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+    const rawData = window.atob(base64)
+    const output = new Uint8Array(rawData.length)
+    for (let i = 0; i < rawData.length; i++) output[i] = rawData.charCodeAt(i)
+    return output
+  }
 
   async function handleSave() {
     setSaving(true)
@@ -245,6 +298,40 @@ export default function SettingsClient({ user, profile, baby, role, caregivers }
             )}
           </div>
         )}
+
+        {/* Push Notifications */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+          <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+            <Bell size={16} className="text-rose-400" /> Notifications
+          </h2>
+          {!pushSupported ? (
+            <p className="text-sm text-gray-400">
+              Push notifications require adding this app to your home screen first.
+            </p>
+          ) : (
+            <>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Get notified when someone else in The Village logs a feeding, diaper change, or sleep.
+              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">
+                  {pushEnabled ? 'Notifications on' : 'Notifications off'}
+                </span>
+                <button
+                  onClick={handlePushToggle}
+                  disabled={pushLoading}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition disabled:opacity-50 ${
+                    pushEnabled
+                      ? 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+                      : 'bg-rose-500 text-white hover:bg-rose-600'
+                  }`}
+                >
+                  {pushEnabled ? <><BellOff size={15} /> Turn off</> : <><Bell size={15} /> Turn on</>}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
 
         {/* Export */}
         <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
