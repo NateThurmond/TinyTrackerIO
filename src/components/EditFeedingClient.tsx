@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Feeding } from '@/lib/supabase/types'
-import { formatAmount, parseToMl, mlToOz } from '@/lib/utils'
+import { formatAmount, parseToMl, mlToOz, toDatetimeLocalValue, datetimeLocalToIso } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Trash2 } from 'lucide-react'
 import Link from 'next/link'
@@ -15,7 +15,7 @@ export default function EditFeedingClient({ feeding, unit }: { feeding: Feeding;
   const displayValue = unit === 'oz' ? mlToOz(feeding.amount_ml) : feeding.amount_ml
   const [amount, setAmount] = useState(String(displayValue))
   const [notes, setNotes] = useState(feeding.notes ?? '')
-  const [fedAt, setFedAt] = useState(new Date(feeding.fed_at).toISOString().slice(0, 16))
+  const [fedAt, setFedAt] = useState(toDatetimeLocalValue(feeding.fed_at))
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -25,7 +25,7 @@ export default function EditFeedingClient({ feeding, unit }: { feeding: Feeding;
     await supabase.from('feedings').update({
       amount_ml: ml,
       notes: notes || null,
-      fed_at: new Date(fedAt).toISOString(),
+      fed_at: datetimeLocalToIso(fedAt),
       updated_at: new Date().toISOString(),
     }).eq('id', feeding.id)
     setLoading(false)

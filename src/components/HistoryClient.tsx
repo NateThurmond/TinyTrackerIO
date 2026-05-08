@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { Feeding, Diaper, Sleep } from '@/lib/supabase/types'
-import { formatAmount, formatTime, getDurationMinutes, formatDuration } from '@/lib/utils'
+import { formatAmount, formatTime, getDurationMinutes, formatDuration, getLocalDateKey } from '@/lib/utils'
 import Link from 'next/link'
 import { ArrowLeft, ChevronLeft, ChevronRight, BarChart2, List } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -34,6 +34,7 @@ type TrendDay = {
   poops: number
   pees: number
   sleepMin: number
+  weightLbs: number | null
 }
 
 const SIZE_EMOJI: Record<string, string> = { small: '🟡', med: '🟠', big: '🔴', ginormous: '💥' }
@@ -65,13 +66,15 @@ export default function HistoryClient({ tab: initialTab, date: initialDate, unit
     start.setDate(start.getDate() - range + 1)
     start.setHours(0, 0, 0, 0)
 
-    const [f, d, s] = await Promise.all([
+    const [f, d, s, w] = await Promise.all([
       supabase.from('feedings').select('fed_at, amount_ml').eq('baby_id', babyId)
         .gte('fed_at', start.toISOString()).lte('fed_at', end.toISOString()),
       supabase.from('diapers').select('changed_at, type').eq('baby_id', babyId)
         .gte('changed_at', start.toISOString()).lte('changed_at', end.toISOString()),
       supabase.from('sleeps').select('started_at, ended_at').eq('baby_id', babyId)
         .gte('started_at', start.toISOString()).lte('started_at', end.toISOString()),
+      supabase.from('weights').select('weighed_at, weight_lbs').eq('baby_id', babyId)
+        .gte('weighed_at', start.toISOString()).lte('weighed_at', end.toISOString()),
     ])
 
     const days: TrendDay[] = []
@@ -93,6 +96,11 @@ export default function HistoryClient({ tab: initialTab, date: initialDate, unit
         const t = new Date(x.started_at)
         return t >= dayStart && t <= dayEnd
       })
+      const dayWeights = (w.data ?? []).filter(x => {
+        const t = new Date(x.weighed_at)
+        return t >= dayStart && t <= dayEnd
+      })
+      const latestDayWeight = dayWeights.sort((a, b) => new Date(b.weighed_at).getTime() - new Date(a.weighed_at).getTime())[0]
 
       days.push({
         label: d2.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -100,6 +108,7 @@ export default function HistoryClient({ tab: initialTab, date: initialDate, unit
         poops: dayDiapers.filter(x => x.type === 'poop' || x.type === 'mixed').length,
         pees: dayDiapers.filter(x => x.type === 'pee' || x.type === 'mixed').length,
         sleepMin: daySleeps.reduce((sum, x) => sum + getDurationMinutes(x.started_at, x.ended_at), 0),
+        weightLbs: latestDayWeight ? Number(latestDayWeight.weight_lbs) : null,
       })
     }
     setTrendData(days)
@@ -109,12 +118,12 @@ export default function HistoryClient({ tab: initialTab, date: initialDate, unit
   function shiftDate(days: number) {
     const d = new Date(date)
     d.setDate(d.getDate() + days)
-    const newDate = d.toISOString().split('T')[0]
+    const newDate = getLocalDateKey(d)
     setDate(newDate)
     window.location.href = `/history?tab=${tab}&date=${newDate}`
   }
 
-  const isToday = date === new Date().toISOString().split('T')[0]
+  const isToday = date === getLocalDateKey()
 
   const TABS = [
     { key: 'feeding', label: '🍼 Feeds' },
@@ -230,6 +239,24 @@ export default function HistoryClient({ tab: initialTab, date: initialDate, unit
                       contentStyle={{ fontSize: 12, borderRadius: 8 }}
                     />
                     <Line type="monotone" dataKey="sleepMin" stroke="#a855f7" strokeWidth={2} dot={false} name="Sleep" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Weight chart */}
+              <div className="bg-white rounded-2xl shadow-sm p-4">
+                <p className="text-xs font-semibold text-gray-500 mb-2">⚖️ Weight (lbs)</p>
+                <ResponsiveContainer width="100%" height={120}>
+                  <LineChart data={trendData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="label" tick={tickStyle} interval={Math.floor(range / 7)} />
+                    <YAxis tick={tickStyle} domain={['auto', 'auto']} />
+                    <Tooltip
+                      formatter={(v) => (v == null ? ['No entry'] : [`${Number(v).toFixed(1)} lbs`])}
+                      labelStyle={{ fontSize: 11 }}
+                      contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                    />
+                    <Line type="monotone" dataKey="weightLbs" stroke="#22c55e" strokeWidth={2} connectNulls={false} dot={{ r: 2 }} name="Weight" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>

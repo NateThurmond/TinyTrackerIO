@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Sleep } from '@/lib/supabase/types'
+import { toDatetimeLocalValue, datetimeLocalToIso } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Trash2 } from 'lucide-react'
 import Link from 'next/link'
@@ -11,16 +12,16 @@ export default function EditSleepClient({ sleep }: { sleep: Sleep }) {
   const router = useRouter()
   const supabase = createClient()
 
-  const [startedAt, setStartedAt] = useState(new Date(sleep.started_at).toISOString().slice(0, 16))
-  const [endedAt, setEndedAt] = useState(sleep.ended_at ? new Date(sleep.ended_at).toISOString().slice(0, 16) : '')
+  const [startedAt, setStartedAt] = useState(toDatetimeLocalValue(sleep.started_at))
+  const [endedAt, setEndedAt] = useState(sleep.ended_at ? toDatetimeLocalValue(sleep.ended_at) : '')
   const [notes, setNotes] = useState(sleep.notes ?? '')
   const [loading, setLoading] = useState(false)
 
   async function handleSave() {
     setLoading(true)
     await supabase.from('sleeps').update({
-      started_at: new Date(startedAt).toISOString(),
-      ended_at: endedAt ? new Date(endedAt).toISOString() : null,
+      started_at: datetimeLocalToIso(startedAt),
+      ended_at: endedAt ? datetimeLocalToIso(endedAt) : null,
       notes: notes || null,
       updated_at: new Date().toISOString(),
     }).eq('id', sleep.id)

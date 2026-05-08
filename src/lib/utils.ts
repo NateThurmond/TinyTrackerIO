@@ -43,6 +43,28 @@ export function formatTime(dateStr: string): string {
   }).format(new Date(dateStr))
 }
 
+/** Format an ISO date string into datetime-local input format in local time */
+export function toDatetimeLocalValue(dateStr: string): string {
+  const d = new Date(dateStr)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+/** Convert datetime-local value to ISO safely in local time */
+export function datetimeLocalToIso(value: string): string {
+  const [datePart, timePart] = value.split('T')
+  if (!datePart || !timePart) return new Date(value).toISOString()
+  const [year, month, day] = datePart.split('-').map(Number)
+  const [hour, minute] = timePart.split(':').map(Number)
+  return new Date(year, month - 1, day, hour, minute, 0, 0).toISOString()
+}
+
+/** Local date key (YYYY-MM-DD) */
+export function getLocalDateKey(d = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 /** Check if a date is today */
 export function isToday(dateStr: string): boolean {
   const d = new Date(dateStr)

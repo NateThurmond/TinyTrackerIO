@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Baby, Profile, Feeding, Diaper, Sleep, Weight } from '@/lib/supabase/types'
-import { formatAmount, parseToMl, mlToOz, formatTime, getDurationMinutes, formatDuration, getBabyAge } from '@/lib/utils'
+import { formatAmount, parseToMl, mlToOz, formatTime, getDurationMinutes, formatDuration, getBabyAge, toDatetimeLocalValue, datetimeLocalToIso } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Settings, Clock, History, Bell, LogOut, Plus, Moon, Sun, Droplets, Camera } from 'lucide-react'
@@ -29,11 +29,6 @@ const DIAPER_SIZE_EMOJI: Record<DiaperSize, string> = {
   med: '🟠',
   big: '🔴',
   ginormous: '💥',
-}
-
-function toDatetimeLocal(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 function formatAgoFromNow(value: string): string {
@@ -155,7 +150,7 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
 
   useEffect(() => {
     if (activeModal) {
-      const now = toDatetimeLocal(new Date())
+      const now = toDatetimeLocalValue(new Date().toISOString())
       setFeedAt(now)
       setChangedAt(now)
       setSleepStartAt(now)
@@ -185,7 +180,7 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
     if (!amount || amount <= 0) return
     setSubmitting(true)
     const ml = parseToMl(amount, unit)
-    await supabase.from('feedings').insert({ baby_id: baby.id, logged_by: user.id, amount_ml: ml, fed_at: new Date(feedAt).toISOString() })
+    await supabase.from('feedings').insert({ baby_id: baby.id, logged_by: user.id, amount_ml: ml, fed_at: datetimeLocalToIso(feedAt) })
     setFeedAmount('')
     setActiveModal(null)
     setSubmitting(false)
@@ -201,7 +196,7 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
       logged_by: user.id,
       type: diaperType,
       size: diaperSize,
-      changed_at: new Date(changedAt).toISOString(),
+      changed_at: datetimeLocalToIso(changedAt),
     })
     setActiveModal(null)
     setSubmitting(false)
@@ -214,9 +209,9 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
   async function logSleep() {
     setSubmitting(true)
     if (sleepAction === 'start') {
-      await supabase.from('sleeps').insert({ baby_id: baby.id, logged_by: user.id, started_at: new Date(sleepStartAt).toISOString() })
+      await supabase.from('sleeps').insert({ baby_id: baby.id, logged_by: user.id, started_at: datetimeLocalToIso(sleepStartAt) })
     } else if (activeSleep) {
-      await supabase.from('sleeps').update({ ended_at: new Date(sleepEndAt).toISOString() }).eq('id', activeSleep.id)
+      await supabase.from('sleeps').update({ ended_at: datetimeLocalToIso(sleepEndAt) }).eq('id', activeSleep.id)
     }
     setActiveModal(null)
     setSubmitting(false)
@@ -234,7 +229,7 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
       baby_id: baby.id,
       logged_by: user.id,
       weight_lbs: val,
-      weighed_at: new Date(weightAt).toISOString(),
+      weighed_at: datetimeLocalToIso(weightAt),
     })
     setWeightValue('')
     setActiveModal(null)

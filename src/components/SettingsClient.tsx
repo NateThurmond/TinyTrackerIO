@@ -258,14 +258,18 @@ export default function SettingsClient({ user, profile, baby, role, caregivers }
               {caregivers.length === 0 ? (
                 <p className="text-sm text-gray-400">No caregivers yet</p>
               ) : (
-                caregivers.map((c) => (
+                caregivers.map((c, idx) => (
                   <div key={c.user_id} className="flex items-center gap-3 py-1.5">
                     <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-sm flex-shrink-0">
                       {(c.profiles?.display_name ?? c.profiles?.email ?? '?')[0].toUpperCase()}
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-800 leading-tight">{c.profiles?.display_name ?? c.profiles?.email ?? 'Unknown'}</p>
-                      <p className="text-xs text-gray-400 capitalize">{c.role === 'owner' ? '👑 Owner' : '🤝 Caregiver'}</p>
+                      <p className="text-xs text-gray-400 capitalize">
+                        {c.user_id === user.id && c.role === 'owner'
+                          ? '👑 Owner / Caregiver'
+                          : `🤝 Caregiver / Villiage Idiot #${idx + 1}`}
+                      </p>
                     </div>
                   </div>
                 ))

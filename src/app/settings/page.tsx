@@ -1,9 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/supabase/types'
 import { redirect } from 'next/navigation'
 import SettingsClient from '@/components/SettingsClient'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
+  const supabaseAdmin = createAdminClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
@@ -19,14 +25,14 @@ export default async function SettingsPage() {
 
   let caregivers: Array<{ user_id: string; role: string; profiles: { display_name: string | null; email: string } | null }> = []
   if (baby) {
-    const { data: caregiversRaw } = await supabase
+    const { data: caregiversRaw } = await supabaseAdmin
       .from('baby_caregivers')
       .select('user_id, role')
       .eq('baby_id', baby.id as string)
 
     const userIds = (caregiversRaw ?? []).map((c) => c.user_id)
     const { data: profilesData } = userIds.length > 0
-      ? await supabase.from('profiles').select('id, display_name, email').in('id', userIds)
+      ? await supabaseAdmin.from('profiles').select('id, display_name, email').in('id', userIds)
       : { data: [] }
 
     caregivers = (caregiversRaw ?? []).map((c) => ({

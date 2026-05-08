@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Diaper } from '@/lib/supabase/types'
+import { toDatetimeLocalValue, datetimeLocalToIso } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Trash2 } from 'lucide-react'
 import Link from 'next/link'
@@ -19,14 +20,14 @@ export default function EditDiaperClient({ diaper }: { diaper: Diaper }) {
   const [type, setType] = useState<DiaperType>(diaper.type)
   const [size, setSize] = useState<DiaperSize | null>(diaper.size ?? null)
   const [notes, setNotes] = useState(diaper.notes ?? '')
-  const [changedAt, setChangedAt] = useState(new Date(diaper.changed_at).toISOString().slice(0, 16))
+  const [changedAt, setChangedAt] = useState(toDatetimeLocalValue(diaper.changed_at))
   const [loading, setLoading] = useState(false)
 
   async function handleSave() {
     setLoading(true)
     await supabase.from('diapers').update({
       type, size, notes: notes || null,
-      changed_at: new Date(changedAt).toISOString(),
+      changed_at: datetimeLocalToIso(changedAt),
       updated_at: new Date().toISOString(),
     }).eq('id', diaper.id)
     setLoading(false)
