@@ -102,6 +102,14 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baby.id])
 
+  // Refresh when tab becomes visible again (catches missed realtime events)
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshToday() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baby.id])
+
   useEffect(() => {
     if (activeModal) {
       const now = toDatetimeLocal(new Date())
