@@ -215,7 +215,7 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
               fill
               className="object-cover"
             />
-            <div className="absolute inset-0 z-[1]" style={{ background: 'radial-gradient(ellipse at center, transparent 35%, rgba(190, 18, 60, 0.88) 100%)' }} />
+            <div className="absolute inset-0 z-[1]" style={{ background: 'radial-gradient(ellipse at center, transparent 35%, rgba(190, 18, 60, 0.68) 100%)' }} />
           </>
         )}
         <div className="relative z-10 px-4 pb-4" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}>
