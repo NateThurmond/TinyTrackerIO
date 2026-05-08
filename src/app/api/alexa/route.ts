@@ -3,40 +3,27 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/supabase/types'
 import { ozToMl } from '@/lib/utils'
 
-// Alexa Smart Home / Custom Skill webhook
-// Alexa Lambda calls: POST /api/alexa with JSON body
-// Expected body: { userId: string, intent: string, slots?: Record<string, string> }
-// userId here is the Supabase user ID stored in Alexa account linking
+// Alexa Custom Skill endpoint — handles real Alexa Skills Kit (ASK) request format
+// Amazon POSTs JSON here; we verify the skill ID and return ASK response format.
 
 const supabaseAdmin = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-interface AlexaRequest {
-  userId: string
-  intent: string
-  slots?: {
-    diaperType?: string   // "poop" | "pee" | "mixed"
-    size?: string          // "small" | "med" | "big" | "ginormous"
-    amount?: string        // numeric string
-    unit?: string          // "ml" | "milliliter" | "oz" | "ounce"
-  }
-}
+// Logged-in Supabase user ID + baby ID used for all Alexa-logged events
+const ALEXA_USER_ID = process.env.ALEXA_USER_ID!
+const ALEXA_BABY_ID = process.env.ALEXA_BABY_ID!
+const SKILL_ID = process.env.ALEXA_SKILL_ID!
 
-function normalizeUnit(raw: string | undefined): 'ml' | 'oz' {
-  if (!raw) return 'ml'
-  const lower = raw.toLowerCase()
-  if (lower.includes('oz') || lower.includes('ounce')) return 'oz'
-  return 'ml'
-}
-
-function normalizeDiaperType(raw: string | undefined): 'pee' | 'poop' | 'mixed' {
-  if (!raw) return 'poop'
-  const lower = raw.toLowerCase()
-  if (lower.includes('pee') || lower.includes('wee') || lower.includes('wet')) return 'pee'
-  if (lower.includes('mixed') || lower.includes('both')) return 'mixed'
-  return 'poop'
+function alexaResponse(text: string, endSession = true) {
+  return NextResponse.json({
+    version: '1.0',
+    response: {
+      outputSpeech: { type: 'PlainText', text },
+      shouldEndSession: endSession,
+    },
+  })
 }
 
 function normalizeDiaperSize(raw: string | undefined): 'small' | 'med' | 'big' | 'ginormous' {
@@ -49,114 +36,109 @@ function normalizeDiaperSize(raw: string | undefined): 'small' | 'med' | 'big' |
 }
 
 export async function POST(req: NextRequest) {
-  // Basic auth check — Alexa should pass a shared secret header or use account linking
-  const authHeader = req.headers.get('x-alexa-secret')
-  if (authHeader !== process.env.ALEXA_SHARED_SECRET && process.env.ALEXA_SHARED_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  let body: AlexaRequest
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any
   try {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { userId, intent, slots = {} } = body
-
-  if (!userId || !intent) {
-    return NextResponse.json({ error: 'Missing userId or intent' }, { status: 400 })
+  // Verify this request is from our skill
+  const applicationId = body?.context?.System?.application?.applicationId
+  if (SKILL_ID && applicationId !== SKILL_ID) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Look up the baby for this user
-  const { data: caregiver } = await supabaseAdmin
-    .from('baby_caregivers')
-    .select('baby_id')
-    .eq('user_id', userId)
-    .limit(1)
-    .single()
+  const requestType: string = body?.request?.type
 
-  if (!caregiver) {
-    return NextResponse.json({
-      speech: "I couldn't find a baby linked to your account. Please open TinyTrackerIO first.",
-      success: false,
-    })
+  // Handle launch + session ended
+  if (requestType === 'LaunchRequest') {
+    return alexaResponse('Tiny Tracker ready. You can say: log a pee, log a poop, or log a feeding.')
+  }
+  if (requestType === 'SessionEndedRequest') {
+    return NextResponse.json({ version: '1.0', response: {} })
   }
 
-  const babyId = caregiver.baby_id
-
-  // ── INTENT: AddDiaper ────────────────────────────────
-  if (intent === 'AddDiaper' || intent === 'AddPoop' || intent === 'AddPee') {
-    const type = intent === 'AddPee' ? 'pee' : intent === 'AddPoop' ? 'poop' : normalizeDiaperType(slots.diaperType)
-    const size = normalizeDiaperSize(slots.size)
-
-    await supabaseAdmin.from('diapers').insert({
-      baby_id: babyId,
-      logged_by: userId,
-      type,
-      size,
-    })
-
-    const sizeWords: Record<string, string> = { small: 'small', med: 'medium', big: 'big', ginormous: 'ginormous' }
-    return NextResponse.json({
-      speech: `Got it! Logged a ${sizeWords[size]} ${type} diaper for your baby.`,
-      success: true,
-    })
+  if (requestType !== 'IntentRequest') {
+    return alexaResponse("I didn't understand that.")
   }
 
-  // ── INTENT: AddFeeding ───────────────────────────────
-  if (intent === 'AddFeeding') {
-    const rawAmount = slots.amount ? parseFloat(slots.amount) : null
+  const intentName: string = body?.request?.intent?.name
+  const slots = body?.request?.intent?.slots ?? {}
+
+  // Built-in stop/cancel
+  if (intentName === 'AMAZON.StopIntent' || intentName === 'AMAZON.CancelIntent') {
+    return alexaResponse('Okay, bye!')
+  }
+  if (intentName === 'AMAZON.HelpIntent') {
+    return alexaResponse('You can say: log a pee, log a poop, log a big poop, log a mixed diaper, or log 4 ounces.')
+  }
+
+  const babyId = ALEXA_BABY_ID
+  const userId = ALEXA_USER_ID
+
+  if (!babyId || !userId) {
+    return alexaResponse("Tiny Tracker isn't configured yet. Please contact your app admin.")
+  }
+
+  // ── LogPee ───────────────────────────────────────────
+  if (intentName === 'LogPee') {
+    const size = normalizeDiaperSize(slots.Size?.value)
+    await supabaseAdmin.from('diapers').insert({ baby_id: babyId, logged_by: userId, type: 'pee', size })
+    return alexaResponse('Got it, pee logged!')
+  }
+
+  // ── LogPoop ──────────────────────────────────────────
+  if (intentName === 'LogPoop') {
+    const size = normalizeDiaperSize(slots.Size?.value)
+    const sizeWord = size === 'med' ? '' : ` ${size}`
+    await supabaseAdmin.from('diapers').insert({ baby_id: babyId, logged_by: userId, type: 'poop', size })
+    return alexaResponse(`Got it,${sizeWord} poop logged!`)
+  }
+
+  // ── LogMixedDiaper ───────────────────────────────────
+  if (intentName === 'LogMixedDiaper') {
+    await supabaseAdmin.from('diapers').insert({ baby_id: babyId, logged_by: userId, type: 'mixed', size: 'med' })
+    return alexaResponse('Mixed diaper logged!')
+  }
+
+  // ── LogFeeding ───────────────────────────────────────
+  if (intentName === 'LogFeeding') {
+    const rawAmount = slots.Amount?.value ? parseFloat(slots.Amount.value) : null
     if (!rawAmount || isNaN(rawAmount)) {
-      return NextResponse.json({
-        speech: 'How much did the baby eat? Please say something like "add 120 milliliters" or "add 4 ounces".',
-        success: false,
-      })
+      return alexaResponse('How much? Try saying: log 4 ounces or log 120 milliliters.', false)
     }
-
-    const unit = normalizeUnit(slots.unit)
-    const amountMl = unit === 'oz' ? ozToMl(rawAmount) : Math.round(rawAmount)
-
-    await supabaseAdmin.from('feedings').insert({
-      baby_id: babyId,
-      logged_by: userId,
-      amount_ml: amountMl,
-    })
-
-    return NextResponse.json({
-      speech: `Done! I logged ${rawAmount} ${unit} for your baby.`,
-      success: true,
-    })
+    const unitRaw: string = slots.Unit?.value ?? 'ml'
+    const isOz = unitRaw.toLowerCase().includes('oz') || unitRaw.toLowerCase().includes('ounce')
+    const amountMl = isOz ? ozToMl(rawAmount) : Math.round(rawAmount)
+    await supabaseAdmin.from('feedings').insert({ baby_id: babyId, logged_by: userId, amount_ml: amountMl })
+    return alexaResponse(`Done! Logged ${rawAmount} ${isOz ? 'ounces' : 'milliliters'}.`)
   }
 
-  // ── INTENT: StartSleep ───────────────────────────────
-  if (intent === 'StartSleep') {
-    await supabaseAdmin.from('sleeps').insert({
-      baby_id: babyId,
-      logged_by: userId,
-    })
-    return NextResponse.json({
-      speech: 'Sleep started! Sweet dreams, little one.',
-      success: true,
-    })
+  // ── StartSleep ───────────────────────────────────────
+  if (intentName === 'StartSleep') {
+    await supabaseAdmin.from('sleeps').insert({ baby_id: babyId, logged_by: userId })
+    return alexaResponse('Sleep started. Sweet dreams!')
   }
 
-  // ── INTENT: EndSleep ─────────────────────────────────
-  if (intent === 'EndSleep') {
+  // ── EndSleep ─────────────────────────────────────────
+  if (intentName === 'EndSleep') {
     const { data: activeSleep } = await supabaseAdmin
       .from('sleeps')
       .select('id')
       .eq('baby_id', babyId)
       .is('ended_at', null)
+      .order('started_at', { ascending: false })
+      .limit(1)
       .single()
 
     if (!activeSleep) {
-      return NextResponse.json({ speech: "I didn't find an active sleep session to end.", success: false })
+      return alexaResponse("I didn't find an active sleep session to end.")
     }
-
     await supabaseAdmin.from('sleeps').update({ ended_at: new Date().toISOString() }).eq('id', activeSleep.id)
-    return NextResponse.json({ speech: 'Sleep ended. Good morning!', success: true })
+    return alexaResponse('Sleep ended. Good morning!')
   }
 
-  return NextResponse.json({ speech: "I didn't understand that command.", success: false })
+  return alexaResponse("I didn't understand that command.")
 }
