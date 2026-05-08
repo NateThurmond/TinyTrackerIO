@@ -192,7 +192,7 @@ export default function HistoryClient({ tab: initialTab, date: initialDate, unit
                     <XAxis dataKey="label" tick={tickStyle} interval={Math.floor(range / 7)} />
                     <YAxis tick={tickStyle} />
                     <Tooltip
-                      formatter={(v: number) => unit === 'oz' ? [`${(v / 29.5735).toFixed(1)} oz`] : [`${v} ml`]}
+                      formatter={(v) => unit === 'oz' ? [`${(Number(v) / 29.5735).toFixed(1)} oz`] : [`${v} ml`]}
                       labelStyle={{ fontSize: 11 }}
                       contentStyle={{ fontSize: 12, borderRadius: 8 }}
                     />
@@ -225,7 +225,7 @@ export default function HistoryClient({ tab: initialTab, date: initialDate, unit
                     <XAxis dataKey="label" tick={tickStyle} interval={Math.floor(range / 7)} />
                     <YAxis tick={tickStyle} />
                     <Tooltip
-                      formatter={(v: number) => [formatDuration(v)]}
+                      formatter={(v) => [formatDuration(Number(v))]}
                       labelStyle={{ fontSize: 11 }}
                       contentStyle={{ fontSize: 12, borderRadius: 8 }}
                     />
