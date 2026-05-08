@@ -126,6 +126,17 @@ create policy "Users can insert own caregiver record"
   on public.baby_caregivers for insert
   with check (user_id = auth.uid());
 
+-- All caregivers of the same baby can see each other (needed for The Village section)
+create policy "Caregivers can view sibling caregivers"
+  on public.baby_caregivers for select
+  using (
+    exists (
+      select 1 from public.baby_caregivers bc2
+      where bc2.baby_id = baby_caregivers.baby_id
+        and bc2.user_id = auth.uid()
+    )
+  );
+
 -- ─────────────────────────────────────────────
 -- INVITES
 -- ─────────────────────────────────────────────

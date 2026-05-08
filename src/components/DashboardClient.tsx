@@ -29,6 +29,11 @@ const DIAPER_SIZE_EMOJI: Record<DiaperSize, string> = {
   ginormous: '💥',
 }
 
+function toDatetimeLocal(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 export default function DashboardClient({ user, baby, profile, todayFeedings, todayDiapers, todaySleeps }: Props) {
   const supabase = createClient()
   const unit = profile.unit_preference as 'ml' | 'oz'
@@ -56,6 +61,12 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
   const [sleepAction, setSleepAction] = useState<'start' | 'end'>('start')
   const activeSleep = sleeps.find((s) => !s.ended_at)
 
+  // Timestamps (default to now, user can adjust before submitting)
+  const [feedAt, setFeedAt] = useState('')
+  const [changedAt, setChangedAt] = useState('')
+  const [sleepStartAt, setSleepStartAt] = useState('')
+  const [sleepEndAt, setSleepEndAt] = useState('')
+
   // Computed totals
   const totalMl = feedings.reduce((sum, f) => sum + f.amount_ml, 0)
   const peeCount = diapers.filter((d) => d.type === 'pee' || d.type === 'mixed').length
@@ -80,6 +91,16 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baby.id])
 
+  useEffect(() => {
+    if (activeModal) {
+      const now = toDatetimeLocal(new Date())
+      setFeedAt(now)
+      setChangedAt(now)
+      setSleepStartAt(now)
+      setSleepEndAt(now)
+    }
+  }, [activeModal])
+
   async function refreshToday() {
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
@@ -99,7 +120,7 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
     if (!amount || amount <= 0) return
     setSubmitting(true)
     const ml = parseToMl(amount, unit)
-    await supabase.from('feedings').insert({ baby_id: baby.id, logged_by: user.id, amount_ml: ml })
+    await supabase.from('feedings').insert({ baby_id: baby.id, logged_by: user.id, amount_ml: ml, fed_at: new Date(feedAt).toISOString() })
     setFeedAmount('')
     setActiveModal(null)
     setSubmitting(false)
@@ -113,6 +134,7 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
       logged_by: user.id,
       type: diaperType,
       size: diaperSize,
+      changed_at: new Date(changedAt).toISOString(),
     })
     setActiveModal(null)
     setSubmitting(false)
@@ -122,9 +144,9 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
   async function logSleep() {
     setSubmitting(true)
     if (sleepAction === 'start') {
-      await supabase.from('sleeps').insert({ baby_id: baby.id, logged_by: user.id })
+      await supabase.from('sleeps').insert({ baby_id: baby.id, logged_by: user.id, started_at: new Date(sleepStartAt).toISOString() })
     } else if (activeSleep) {
-      await supabase.from('sleeps').update({ ended_at: new Date().toISOString() }).eq('id', activeSleep.id)
+      await supabase.from('sleeps').update({ ended_at: new Date(sleepEndAt).toISOString() }).eq('id', activeSleep.id)
     }
     setActiveModal(null)
     setSubmitting(false)
@@ -156,12 +178,15 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
       {/* ── HEADER ─────────────────────────────────────── */}
       <header className={`relative text-white overflow-hidden ${photoUrl ? 'bg-rose-700' : 'bg-gradient-to-br from-rose-400 to-rose-600'}`}>
         {photoUrl && (
-          <Image
-            src={photoUrl}
-            alt={baby.name as string}
-            fill
-            className="object-cover opacity-50"
-          />
+          <>
+            <Image
+              src={photoUrl}
+              alt={baby.name as string}
+              fill
+              className="object-cover"
+            />
+            <div className="absolute inset-0 z-[1]" style={{ background: 'radial-gradient(ellipse at center, transparent 35%, rgba(190, 18, 60, 0.88) 100%)' }} />
+          </>
         )}
         <div className="relative z-10 px-4 pb-4" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}>
           <div className="flex items-start justify-between mb-3">
@@ -358,6 +383,11 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
                     </button>
                   ))}
                 </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">When?</label>
+                  <input type="datetime-local" value={feedAt} onChange={(e) => setFeedAt(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                </div>
                 <button
                   onClick={logFeeding}
                   disabled={submitting || !feedAmount}
@@ -401,6 +431,11 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
                     ))}
                   </div>
                 </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">When?</label>
+                  <input type="datetime-local" value={changedAt} onChange={(e) => setChangedAt(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                </div>
                 <button
                   onClick={logDiaper}
                   disabled={submitting}
@@ -417,11 +452,20 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
                   {sleepAction === 'start' ? 'Start Sleep' : 'End Sleep'}
                 </h2>
                 {sleepAction === 'start' ? (
-                  <p className="text-gray-500 text-sm">This will record the sleep start time as now.</p>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Started at</label>
+                    <input type="datetime-local" value={sleepStartAt} onChange={(e) => setSleepStartAt(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+                  </div>
                 ) : (
-                  <p className="text-gray-500 text-sm">
-                    Ending sleep started at {activeSleep ? formatTime(activeSleep.started_at) : '—'}
-                  </p>
+                  <div className="space-y-3">
+                    <p className="text-xs text-gray-500">Started at {activeSleep ? formatTime(activeSleep.started_at) : '—'}</p>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Woke up at</label>
+                      <input type="datetime-local" value={sleepEndAt} onChange={(e) => setSleepEndAt(e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+                    </div>
+                  </div>
                 )}
                 <button
                   onClick={logSleep}
