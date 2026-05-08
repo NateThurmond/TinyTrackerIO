@@ -154,13 +154,13 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
   return (
     <div className="min-h-screen bg-rose-50">
       {/* ── HEADER ─────────────────────────────────────── */}
-      <header className="relative bg-gradient-to-br from-rose-400 to-rose-600 text-white overflow-hidden">
+      <header className={`relative text-white overflow-hidden ${photoUrl ? 'bg-rose-700' : 'bg-gradient-to-br from-rose-400 to-rose-600'}`}>
         {photoUrl && (
           <Image
             src={photoUrl}
             alt={baby.name as string}
             fill
-            className="object-cover opacity-20"
+            className="object-cover opacity-50"
           />
         )}
         <div className="relative z-10 px-4 pb-4" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}>

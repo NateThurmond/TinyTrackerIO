@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/lib/supabase/types'
-import { ArrowLeft, Camera, Download, UserPlus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Camera, Download, UserPlus, Trash2, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -185,47 +185,63 @@ export default function SettingsClient({ user, profile, baby, role, caregivers }
           </button>
         </div>
 
-        {/* Caregivers / invite */}
-        {baby && role === 'owner' && (
+        {/* The Village */}
+        {baby && (
           <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
-            <h2 className="font-semibold text-gray-800">Caregivers</h2>
+            <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+              <Users size={16} className="text-rose-400" /> The Village
+            </h2>
             <div className="space-y-2">
-              {caregivers.map((c) => (
-                <div key={c.user_id} className="flex items-center justify-between py-1">
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">{c.profiles?.display_name ?? c.profiles?.email ?? 'Unknown'}</p>
-                    <p className="text-xs text-gray-400 capitalize">{c.role}</p>
+              {caregivers.length === 0 ? (
+                <p className="text-sm text-gray-400">No caregivers yet</p>
+              ) : (
+                caregivers.map((c) => (
+                  <div key={c.user_id} className="flex items-center gap-3 py-1.5">
+                    <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-sm flex-shrink-0">
+                      {(c.profiles?.display_name ?? c.profiles?.email ?? '?')[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800 leading-tight">{c.profiles?.display_name ?? c.profiles?.email ?? 'Unknown'}</p>
+                      <p className="text-xs text-gray-400 capitalize">{c.role === 'owner' ? '👑 Owner' : '🤝 Caregiver'}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
-            <div className="flex gap-2">
-              <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="partner@example.com"
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" />
-              <button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}
-                className="flex items-center gap-1 bg-rose-500 text-white text-sm font-medium px-3 py-2 rounded-xl hover:bg-rose-600 transition disabled:opacity-50">
-                <UserPlus size={15} /> Invite
-              </button>
-            </div>
-            {inviteLink && (
-              <div className="mt-2 bg-rose-50 rounded-xl p-3 space-y-2">
-                <p className="text-xs text-rose-700 font-medium">Share this link with your partner:</p>
-                <div className="flex gap-2 items-center">
-                  <input
-                    readOnly
-                    value={inviteLink}
-                    className="flex-1 text-xs bg-white border border-rose-200 rounded-lg px-2 py-1.5 text-gray-700 select-all"
-                    onFocus={(e) => e.target.select()}
-                  />
-                  <button
-                    onClick={() => { navigator.clipboard.writeText(inviteLink); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
-                    className="text-xs bg-rose-500 text-white px-3 py-1.5 rounded-lg hover:bg-rose-600 transition whitespace-nowrap"
-                  >
-                    {copied ? 'Copied!' : 'Copy'}
-                  </button>
+            {role === 'owner' && (
+              <>
+                <div className="border-t border-gray-50 pt-3">
+                  <p className="text-xs text-gray-500 mb-2">Invite someone to the village</p>
+                  <div className="flex gap-2">
+                    <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="partner@example.com"
+                      className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" />
+                    <button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}
+                      className="flex items-center gap-1 bg-rose-500 text-white text-sm font-medium px-3 py-2 rounded-xl hover:bg-rose-600 transition disabled:opacity-50">
+                      <UserPlus size={15} /> Invite
+                    </button>
+                  </div>
+                  {inviteLink && (
+                    <div className="mt-2 bg-rose-50 rounded-xl p-3 space-y-2">
+                      <p className="text-xs text-rose-700 font-medium">Share this link:</p>
+                      <div className="flex gap-2 items-center">
+                        <input
+                          readOnly
+                          value={inviteLink}
+                          className="flex-1 text-xs bg-white border border-rose-200 rounded-lg px-2 py-1.5 text-gray-700 select-all"
+                          onFocus={(e) => e.target.select()}
+                        />
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(inviteLink); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+                          className="text-xs bg-rose-500 text-white px-3 py-1.5 rounded-lg hover:bg-rose-600 transition whitespace-nowrap"
+                        >
+                          {copied ? 'Copied!' : 'Copy'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
+              </>
             )}
           </div>
         )}
