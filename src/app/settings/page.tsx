@@ -17,12 +17,24 @@ export default async function SettingsPage() {
   const baby = (caregiverRows?.[0]?.babies ?? null) as Record<string, unknown> | null
   const role = caregiverRows?.[0]?.role ?? 'caregiver'
 
-  const caregivers = baby
-    ? await supabase
-        .from('baby_caregivers')
-        .select('*, profiles(display_name, email)')
-        .eq('baby_id', baby.id as string)
-    : { data: [] }
+  let caregivers: Array<{ user_id: string; role: string; profiles: { display_name: string | null; email: string } | null }> = []
+  if (baby) {
+    const { data: caregiversRaw } = await supabase
+      .from('baby_caregivers')
+      .select('user_id, role')
+      .eq('baby_id', baby.id as string)
+
+    const userIds = (caregiversRaw ?? []).map((c) => c.user_id)
+    const { data: profilesData } = userIds.length > 0
+      ? await supabase.from('profiles').select('id, display_name, email').in('id', userIds)
+      : { data: [] }
+
+    caregivers = (caregiversRaw ?? []).map((c) => ({
+      user_id: c.user_id,
+      role: c.role,
+      profiles: (profilesData ?? []).find((p) => p.id === c.user_id) ?? null,
+    }))
+  }
 
   return (
     <SettingsClient
@@ -30,7 +42,7 @@ export default async function SettingsPage() {
       profile={profile ?? { id: user.id, email: user.email ?? '', display_name: null, unit_preference: 'ml', created_at: '', updated_at: '' }}
       baby={baby}
       role={role as 'owner' | 'caregiver'}
-      caregivers={caregivers.data ?? []}
+      caregivers={caregivers}
     />
   )
 }
