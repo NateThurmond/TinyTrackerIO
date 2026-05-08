@@ -6,7 +6,7 @@ Track feedings, diapers, sleep, and weight with a fast one-tap workflow, real-ti
 
 ## Dashboard
 
-![TinyTrackerIO dashboard](docs/images/dashboard-home.png)
+<img src="docs/images/dashboard-home.png" alt="TinyTrackerIO dashboard" width="360" />
 
 ## Current Features
 
