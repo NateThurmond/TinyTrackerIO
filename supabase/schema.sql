@@ -127,15 +127,20 @@ create policy "Users can insert own caregiver record"
   with check (user_id = auth.uid());
 
 -- All caregivers of the same baby can see each other (needed for The Village section)
+-- Uses security definer to avoid infinite recursion (policy on baby_caregivers cannot query baby_caregivers directly)
+create or replace function public.get_my_baby_ids()
+returns setof uuid
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select baby_id from public.baby_caregivers where user_id = auth.uid()
+$$;
+
 create policy "Caregivers can view sibling caregivers"
   on public.baby_caregivers for select
-  using (
-    exists (
-      select 1 from public.baby_caregivers bc2
-      where bc2.baby_id = baby_caregivers.baby_id
-        and bc2.user_id = auth.uid()
-    )
-  );
+  using (baby_id = any(public.get_my_baby_ids()));
 
 -- ─────────────────────────────────────────────
 -- INVITES
