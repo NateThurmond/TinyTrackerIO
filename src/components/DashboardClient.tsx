@@ -36,6 +36,20 @@ function toDatetimeLocal(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+function formatAgoFromNow(value: string): string {
+  const diffMs = Math.max(0, Date.now() - new Date(value).getTime())
+  const totalMinutes = Math.floor(diffMs / 60000)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+
+  if (hours <= 0) {
+    return `${minutes} min ago`
+  }
+
+  const hourLabel = hours === 1 ? 'hour' : 'hours'
+  return `${hours} ${hourLabel} ${minutes} min ago`
+}
+
 export default function DashboardClient({ user, baby, profile, todayFeedings, todayDiapers, todaySleeps, recentWeights, lifetimeStats }: Props) {
   const supabase = createClient()
   const unit = profile.unit_preference as 'ml' | 'oz'
@@ -315,10 +329,10 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
           {feedings.length === 0 ? (
             <EmptyState text="No feeds today yet" />
           ) : (
-            feedings.slice(0, 5).map((f) => (
+            feedings.slice(0, 5).map((f, idx) => (
               <EntryRow
                 key={f.id}
-                left={formatTime(f.fed_at)}
+                left={`${formatTime(f.fed_at)}${idx === 0 ? ` (${formatAgoFromNow(f.fed_at)})` : ''}`}
                 right={formatAmount(f.amount_ml, unit)}
                 sub={f.notes ?? undefined}
                 href={`/history/feeding/${f.id}`}
