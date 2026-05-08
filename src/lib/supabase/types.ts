@@ -246,6 +246,43 @@ export type Database = {
           }
         ]
       }
+      weights: {
+        Row: {
+          id: string
+          baby_id: string
+          logged_by: string
+          weight_lbs: number
+          notes: string | null
+          weighed_at: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          baby_id: string
+          logged_by: string
+          weight_lbs: number
+          notes?: string | null
+          weighed_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          weight_lbs?: number
+          notes?: string | null
+          weighed_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'weights_baby_id_fkey'
+            columns: ['baby_id']
+            isOneToOne: false
+            referencedRelation: 'babies'
+            referencedColumns: ['id']
+          }
+        ]
+      }
       alarms: {
         Row: {
           id: string
@@ -314,5 +351,6 @@ export type BabyCaregiver = Tables<'baby_caregivers'>
 export type Feeding = Tables<'feedings'>
 export type Diaper = Tables<'diapers'>
 export type Sleep = Tables<'sleeps'>
+export type Weight = Tables<'weights'>
 export type Alarm = Tables<'alarms'>
 export type Invite = Tables<'invites'>

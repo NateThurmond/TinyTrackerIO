@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import DashboardClient from '@/components/DashboardClient'
-import type { Baby } from '@/lib/supabase/types'
+import type { Baby, Weight } from '@/lib/supabase/types'
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -33,7 +33,7 @@ export default async function HomePage() {
   todayStart.setHours(0, 0, 0, 0)
   const todayISO = todayStart.toISOString()
 
-  const [feedingsRes, diapersRes, sleepsRes] = await Promise.all([
+  const [feedingsRes, diapersRes, sleepsRes, weightsRes] = await Promise.all([
     supabase
       .from('feedings')
       .select('*')
@@ -52,7 +52,22 @@ export default async function HomePage() {
       .eq('baby_id', baby.id as string)
       .gte('started_at', todayISO)
       .order('started_at', { ascending: false }),
+    supabase
+      .from('weights')
+      .select('*')
+      .eq('baby_id', baby.id as string)
+      .order('weighed_at', { ascending: false })
+      .limit(20),
   ])
+
+  const [lifetimeFeedingsRes, lifetimeDiapersRes] = await Promise.all([
+    supabase.from('feedings').select('amount_ml').eq('baby_id', baby.id as string),
+    supabase.from('diapers').select('type').eq('baby_id', baby.id as string),
+  ])
+
+  const lifetimeTotalMl = (lifetimeFeedingsRes.data ?? []).reduce((s, f) => s + f.amount_ml, 0)
+  const lifetimePoops = (lifetimeDiapersRes.data ?? []).filter(d => d.type === 'poop' || d.type === 'mixed').length
+  const lifetimePees = (lifetimeDiapersRes.data ?? []).filter(d => d.type === 'pee' || d.type === 'mixed').length
 
   return (
     <DashboardClient
@@ -62,6 +77,8 @@ export default async function HomePage() {
       todayFeedings={feedingsRes.data ?? []}
       todayDiapers={diapersRes.data ?? []}
       todaySleeps={sleepsRes.data ?? []}
+      recentWeights={(weightsRes.data ?? []) as Weight[]}
+      lifetimeStats={{ totalMl: lifetimeTotalMl, poops: lifetimePoops, pees: lifetimePees }}
     />
   )
 }

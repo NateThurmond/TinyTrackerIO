@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { Baby, Profile, Feeding, Diaper, Sleep } from '@/lib/supabase/types'
+import type { Baby, Profile, Feeding, Diaper, Sleep, Weight } from '@/lib/supabase/types'
 import { formatAmount, parseToMl, mlToOz, formatTime, getDurationMinutes, formatDuration, getBabyAge } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -15,11 +15,13 @@ interface Props {
   todayFeedings: Feeding[]
   todayDiapers: Diaper[]
   todaySleeps: Sleep[]
+  recentWeights: Weight[]
+  lifetimeStats: { totalMl: number; poops: number; pees: number }
 }
 
 type DiaperType = 'pee' | 'poop' | 'mixed'
 type DiaperSize = 'small' | 'med' | 'big' | 'ginormous'
-type ActiveModal = 'feeding' | 'diaper' | 'sleep' | null
+type ActiveModal = 'feeding' | 'diaper' | 'sleep' | 'weight' | null
 
 const DIAPER_SIZE_LABELS: DiaperSize[] = ['small', 'med', 'big', 'ginormous']
 const DIAPER_SIZE_EMOJI: Record<DiaperSize, string> = {
@@ -34,13 +36,14 @@ function toDatetimeLocal(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-export default function DashboardClient({ user, baby, profile, todayFeedings, todayDiapers, todaySleeps }: Props) {
+export default function DashboardClient({ user, baby, profile, todayFeedings, todayDiapers, todaySleeps, recentWeights, lifetimeStats }: Props) {
   const supabase = createClient()
   const unit = profile.unit_preference as 'ml' | 'oz'
 
   const [feedings, setFeedings] = useState<Feeding[]>(todayFeedings)
   const [diapers, setDiapers] = useState<Diaper[]>(todayDiapers)
   const [sleeps, setSleeps] = useState<Sleep[]>(todaySleeps)
+  const [weights, setWeights] = useState<Weight[]>(recentWeights)
 
   const [activeModal, setActiveModal] = useState<ActiveModal>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -61,6 +64,10 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
   const [sleepAction, setSleepAction] = useState<'start' | 'end'>('start')
   const activeSleep = sleeps.find((s) => !s.ended_at)
 
+  // Weight form
+  const [weightValue, setWeightValue] = useState('')
+  const [weightAt, setWeightAt] = useState('')
+
   // Timestamps (default to now, user can adjust before submitting)
   const [feedAt, setFeedAt] = useState('')
   const [changedAt, setChangedAt] = useState('')
@@ -69,6 +76,7 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
 
   // Computed totals
   const totalMl = feedings.reduce((sum, f) => sum + f.amount_ml, 0)
+  const latestWeight = weights[0]
   const peeCount = diapers.filter((d) => d.type === 'pee' || d.type === 'mixed').length
   const poopCount = diapers.filter((d) => d.type === 'poop' || d.type === 'mixed').length
   const totalSleepMin = sleeps.reduce((sum, s) => sum + getDurationMinutes(s.started_at, s.ended_at), 0)
@@ -86,6 +94,9 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sleeps', filter: `baby_id=eq.${baby.id}` }, () => {
         refreshToday()
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'weights', filter: `baby_id=eq.${baby.id}` }, () => {
+        refreshToday()
+      })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -98,6 +109,7 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
       setChangedAt(now)
       setSleepStartAt(now)
       setSleepEndAt(now)
+      setWeightAt(now)
     }
   }, [activeModal])
 
@@ -105,14 +117,16 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
     const todayISO = todayStart.toISOString()
-    const [f, d, s] = await Promise.all([
+    const [f, d, s, w] = await Promise.all([
       supabase.from('feedings').select('*').eq('baby_id', baby.id).gte('fed_at', todayISO).order('fed_at', { ascending: false }),
       supabase.from('diapers').select('*').eq('baby_id', baby.id).gte('changed_at', todayISO).order('changed_at', { ascending: false }),
       supabase.from('sleeps').select('*').eq('baby_id', baby.id).gte('started_at', todayISO).order('started_at', { ascending: false }),
+      supabase.from('weights').select('*').eq('baby_id', baby.id).order('weighed_at', { ascending: false }).limit(20),
     ])
     if (f.data) setFeedings(f.data)
     if (d.data) setDiapers(d.data)
     if (s.data) setSleeps(s.data)
+    if (w.data) setWeights(w.data as Weight[])
   }
 
   async function logFeeding() {
@@ -148,6 +162,22 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
     } else if (activeSleep) {
       await supabase.from('sleeps').update({ ended_at: new Date(sleepEndAt).toISOString() }).eq('id', activeSleep.id)
     }
+    setActiveModal(null)
+    setSubmitting(false)
+    await refreshToday()
+  }
+
+  async function logWeight() {
+    const val = parseFloat(weightValue)
+    if (!val || val <= 0) return
+    setSubmitting(true)
+    await supabase.from('weights').insert({
+      baby_id: baby.id,
+      logged_by: user.id,
+      weight_lbs: val,
+      weighed_at: new Date(weightAt).toISOString(),
+    })
+    setWeightValue('')
     setActiveModal(null)
     setSubmitting(false)
     await refreshToday()
@@ -334,6 +364,52 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
           )}
         </Section>
 
+        {/* WEIGHT SECTION */}
+        <Section
+          title="Weight"
+          emoji="⚖️"
+          color="green"
+          onAdd={() => setActiveModal('weight')}
+          addLabel="Log Weight"
+        >
+          {weights.length === 0 ? (
+            <EmptyState text="No weight entries yet" />
+          ) : (
+            weights.slice(0, 5).map((w) => (
+              <EntryRow
+                key={w.id}
+                left={new Date(w.weighed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                right={`${w.weight_lbs} lbs`}
+                sub={w.notes ?? undefined}
+              />
+            ))
+          )}
+          {latestWeight && (
+            <p className="text-xs text-gray-400 pt-1">
+              Last logged: {latestWeight.weight_lbs} lbs on {new Date(latestWeight.weighed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </p>
+          )}
+        </Section>
+
+        {/* LIFETIME STATS */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">All-Time Totals</p>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <p className="text-lg font-bold text-blue-600">{unit === 'oz' ? `${(lifetimeStats.totalMl / 29.5735).toFixed(0)}` : Math.round(lifetimeStats.totalMl / 1000) >= 1 ? `${(lifetimeStats.totalMl / 1000).toFixed(1)}L` : `${lifetimeStats.totalMl}ml`}</p>
+              <p className="text-xs text-gray-400">🍼 Formula</p>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-amber-600">{lifetimeStats.poops}</p>
+              <p className="text-xs text-gray-400">💩 Poops</p>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-yellow-500">{lifetimeStats.pees}</p>
+              <p className="text-xs text-gray-400">💧 Pees</p>
+            </div>
+          </div>
+        </div>
+
         {/* Sign out */}
         <button
           onClick={async () => { await supabase.auth.signOut(); window.location.href = '/login' }}
@@ -476,6 +552,38 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
                 </button>
               </>
             )}
+
+            {activeModal === 'weight' && (
+              <>
+                <h2 className="text-lg font-bold text-gray-800">Log Weight</h2>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="number"
+                    min="0.1"
+                    max="100"
+                    step="0.1"
+                    value={weightValue}
+                    onChange={(e) => setWeightValue(e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-green-300"
+                    placeholder="8.5"
+                    autoFocus
+                  />
+                  <span className="text-2xl font-bold text-gray-400 w-10 text-center">lbs</span>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">When?</label>
+                  <input type="datetime-local" value={weightAt} onChange={(e) => setWeightAt(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-300" />
+                </div>
+                <button
+                  onClick={logWeight}
+                  disabled={submitting || !weightValue}
+                  className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold rounded-xl py-3 transition disabled:opacity-50"
+                >
+                  {submitting ? 'Saving…' : 'Log Weight ⚖️'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -500,7 +608,7 @@ function Section({
 }: {
   title: string
   emoji: string
-  color: 'blue' | 'amber' | 'purple'
+  color: 'blue' | 'amber' | 'purple' | 'green'
   onAdd: () => void
   addLabel: string
   children: React.ReactNode
@@ -509,6 +617,7 @@ function Section({
     blue: 'bg-blue-500 hover:bg-blue-600',
     amber: 'bg-amber-500 hover:bg-amber-600',
     purple: 'bg-purple-500 hover:bg-purple-600',
+    green: 'bg-green-500 hover:bg-green-600',
   }
   return (
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -537,16 +646,28 @@ function EntryRow({
   left: string
   right: React.ReactNode
   sub?: string
-  href: string
+  href?: string
 }) {
-  return (
-    <Link href={href} className="flex items-center justify-between py-2 hover:bg-gray-50 -mx-4 px-4 rounded-xl transition group">
+  const inner = (
+    <>
       <div>
         <span className="text-sm text-gray-500">{left}</span>
         {sub && <p className="text-xs text-gray-400">{sub}</p>}
       </div>
       <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">{right}</span>
-    </Link>
+    </>
+  )
+  if (href) {
+    return (
+      <Link href={href} className="flex items-center justify-between py-2 hover:bg-gray-50 -mx-4 px-4 rounded-xl transition group">
+        {inner}
+      </Link>
+    )
+  }
+  return (
+    <div className="flex items-center justify-between py-2">
+      {inner}
+    </div>
   )
 }
 

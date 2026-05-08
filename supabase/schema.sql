@@ -143,6 +143,31 @@ create policy "Caregivers can view sibling caregivers"
   using (baby_id = any(public.get_my_baby_ids()));
 
 -- ─────────────────────────────────────────────
+-- WEIGHTS
+-- ─────────────────────────────────────────────
+create table if not exists public.weights (
+  id uuid primary key default uuid_generate_v4(),
+  baby_id uuid references public.babies(id) on delete cascade not null,
+  logged_by uuid references auth.users(id) on delete set null not null,
+  weight_lbs numeric(5,2) not null check (weight_lbs > 0),
+  notes text,
+  weighed_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.weights enable row level security;
+
+create policy "Caregivers can manage weights"
+  on public.weights for all
+  using (
+    exists (
+      select 1 from public.baby_caregivers
+      where baby_id = weights.baby_id and user_id = auth.uid()
+    )
+  );
+
+-- ─────────────────────────────────────────────
 -- INVITES
 -- ─────────────────────────────────────────────
 create table if not exists public.invites (
