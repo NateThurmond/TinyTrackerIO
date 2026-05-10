@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import HistoryClient from '@/components/HistoryClient'
-import { getLocalDateKey } from '@/lib/utils'
+import { getLocalDateKey, parseLocalDateKey } from '@/lib/utils'
 
 export default async function HistoryPage({
   searchParams,
@@ -16,9 +16,8 @@ export default async function HistoryPage({
   const tab = (params.tab ?? 'feeding') as 'feeding' | 'diaper' | 'sleep'
   const date = params.date ?? getLocalDateKey()
 
-  const start = new Date(date)
-  start.setHours(0, 0, 0, 0)
-  const end = new Date(date)
+  const start = parseLocalDateKey(date)
+  const end = parseLocalDateKey(date)
   end.setHours(23, 59, 59, 999)
 
   const { data: caregiverRows } = await supabase

@@ -46,6 +46,56 @@ function normalizeDiaperSize(raw: string | undefined): 'small' | 'med' | 'big' |
   return 'med'
 }
 
+function parseSpokenNumber(raw: string | undefined): number | null {
+  if (!raw) return null
+  const cleaned = raw.trim().toLowerCase()
+
+  const numeric = cleaned.match(/\d+(?:\.\d+)?/)
+  if (numeric) return parseFloat(numeric[0])
+
+  const simpleMap: Record<string, number> = {
+    zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5,
+    six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+    eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+    sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20,
+  }
+
+  if (cleaned in simpleMap) return simpleMap[cleaned]
+
+  // Handle phrases like "four and a half" or "three point five"
+  const halfMatch = cleaned.match(/(one|two|three|four|five|six|seven|eight|nine|ten)\s+and\s+a\s+half/)
+  if (halfMatch) return (simpleMap[halfMatch[1]] ?? 0) + 0.5
+
+  if (cleaned.includes('point')) {
+    const parts = cleaned.split('point').map((p) => p.trim())
+    const whole = simpleMap[parts[0]]
+    const fracWord = parts[1]
+    if (whole != null && fracWord in simpleMap) {
+      const frac = simpleMap[fracWord]
+      const digits = String(frac)
+      return parseFloat(`${whole}.${digits}`)
+    }
+  }
+
+  return null
+}
+
+function normalizeUnit(rawUnit: string | undefined, rawAmount: string | undefined): 'oz' | 'ml' {
+  const joined = `${rawUnit ?? ''} ${rawAmount ?? ''}`.toLowerCase()
+  if (joined.includes('oz') || joined.includes('ounce') || joined.includes('bottle')) return 'oz'
+  if (joined.includes('ml') || joined.includes('milliliter') || joined.includes('millilitre')) return 'ml'
+  return 'ml'
+}
+
+function extractFeeding(slots: Record<string, { value?: string }>) {
+  const rawAmount = slots.Amount?.value
+  const amount = parseSpokenNumber(rawAmount) ?? (rawAmount ? parseFloat(rawAmount) : null)
+  if (!amount || isNaN(amount) || amount <= 0) return null
+  const unit = normalizeUnit(slots.Unit?.value, rawAmount)
+  const amountMl = unit === 'oz' ? ozToMl(amount) : Math.round(amount)
+  return { amount, unit, amountMl }
+}
+
 export async function POST(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let body: any
@@ -85,6 +135,9 @@ export async function POST(req: NextRequest) {
   if (intentName === 'AMAZON.HelpIntent') {
     return alexaResponse('You can say: log a pee, log a poop, log a big poop, log a mixed diaper, or log 4 ounces.')
   }
+  if (intentName === 'AMAZON.FallbackIntent') {
+    return alexaResponse('Do you want to log a pee, poop, or feeding? For feeding, say log 4 ounces or log 120 milliliters.', false)
+  }
 
   const babyId = ALEXA_BABY_ID
   const userId = ALEXA_USER_ID
@@ -103,6 +156,15 @@ export async function POST(req: NextRequest) {
 
   // ── LogPoop ──────────────────────────────────────────
   if (intentName === 'LogPoop') {
+    // If Alexa routed a feeding-like phrase here, ask for clarification instead of logging poop.
+    const slotValues = Object.values(slots)
+      .map((s: { value?: string } | undefined) => s?.value ?? '')
+      .join(' ')
+      .toLowerCase()
+    if (slotValues.includes('ounce') || slotValues.includes('oz') || slotValues.includes('ml') || slotValues.includes('bottle') || slotValues.includes('formula') || slotValues.includes('feed')) {
+      return alexaResponse('I heard a feeding amount. Say: log 4 ounces, or log 120 milliliters.', false)
+    }
+
     const size = normalizeDiaperSize(slots.Size?.value)
     const sizeWord = size === 'med' ? '' : ` ${size}`
     await supabaseAdmin.from('diapers').insert({ baby_id: babyId, logged_by: userId, type: 'poop', size })
@@ -118,17 +180,14 @@ export async function POST(req: NextRequest) {
   }
 
   // ── LogFeeding ───────────────────────────────────────
-  if (intentName === 'LogFeeding') {
-    const rawAmount = slots.Amount?.value ? parseFloat(slots.Amount.value) : null
-    if (!rawAmount || isNaN(rawAmount)) {
+  if (intentName === 'LogFeeding' || intentName === 'LogBottle' || intentName === 'LogFormula') {
+    const feeding = extractFeeding(slots)
+    if (!feeding) {
       return alexaResponse('How much? Try saying: log 4 ounces or log 120 milliliters.', false)
     }
-    const unitRaw: string = slots.Unit?.value ?? 'ml'
-    const isOz = unitRaw.toLowerCase().includes('oz') || unitRaw.toLowerCase().includes('ounce')
-    const amountMl = isOz ? ozToMl(rawAmount) : Math.round(rawAmount)
-    await supabaseAdmin.from('feedings').insert({ baby_id: babyId, logged_by: userId, amount_ml: amountMl })
-    notifyVillage(babyId, userId, '🍼 Feeding logged', `Alexa logged ${rawAmount} ${isOz ? 'oz' : 'ml'} for Benjamin`)
-    return alexaResponse(`Done! Logged ${rawAmount} ${isOz ? 'ounces' : 'milliliters'}.`)
+    await supabaseAdmin.from('feedings').insert({ baby_id: babyId, logged_by: userId, amount_ml: feeding.amountMl })
+    notifyVillage(babyId, userId, '🍼 Feeding logged', `Alexa logged ${feeding.amount} ${feeding.unit} for Benjamin`)
+    return alexaResponse(`Done! Logged ${feeding.amount} ${feeding.unit === 'oz' ? 'ounces' : 'milliliters'}.`)
   }
 
   // ── StartSleep ───────────────────────────────────────
@@ -156,5 +215,5 @@ export async function POST(req: NextRequest) {
     return alexaResponse('Sleep ended. Good morning!')
   }
 
-  return alexaResponse("I didn't understand that command.")
+  return alexaResponse('I did not catch that. Say: log a pee, log a poop, or log 4 ounces.', false)
 }

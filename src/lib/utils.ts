@@ -65,6 +65,12 @@ export function getLocalDateKey(d = new Date()): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
+/** Parse local date key (YYYY-MM-DD) into a local Date at 00:00 */
+export function parseLocalDateKey(dateKey: string): Date {
+  const [year, month, day] = dateKey.split('-').map(Number)
+  return new Date(year, month - 1, day, 0, 0, 0, 0)
+}
+
 /** Check if a date is today */
 export function isToday(dateStr: string): boolean {
   const d = new Date(dateStr)

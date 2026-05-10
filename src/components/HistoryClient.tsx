@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { Feeding, Diaper, Sleep } from '@/lib/supabase/types'
-import { formatAmount, formatTime, getDurationMinutes, formatDuration, getLocalDateKey } from '@/lib/utils'
+import { formatAmount, formatTime, getDurationMinutes, formatDuration, getLocalDateKey, parseLocalDateKey } from '@/lib/utils'
 import Link from 'next/link'
 import { ArrowLeft, ChevronLeft, ChevronRight, BarChart2, List } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -116,7 +116,7 @@ export default function HistoryClient({ tab: initialTab, date: initialDate, unit
   }
 
   function shiftDate(days: number) {
-    const d = new Date(date)
+    const d = parseLocalDateKey(date)
     d.setDate(d.getDate() + days)
     const newDate = getLocalDateKey(d)
     setDate(newDate)
@@ -163,7 +163,7 @@ export default function HistoryClient({ tab: initialTab, date: initialDate, unit
               <ChevronLeft size={18} />
             </button>
             <span className="text-sm font-medium text-gray-700 min-w-[80px] text-center">
-              {isToday ? 'Today' : new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {isToday ? 'Today' : parseLocalDateKey(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </span>
             <button onClick={() => shiftDate(1)} disabled={isToday} className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-30">
               <ChevronRight size={18} />
