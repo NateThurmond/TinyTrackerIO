@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import HistoryClient from '@/components/HistoryClient'
-import { getLocalDateKey, parseLocalDateKey } from '@/lib/utils'
+import { getLocalDateKey } from '@/lib/utils'
 
 export default async function HistoryPage({
   searchParams,
@@ -17,10 +17,6 @@ export default async function HistoryPage({
   const date = params.date ?? getLocalDateKey()
   const mode = (params.mode === 'list' ? 'list' : 'chart') as 'list' | 'chart'
 
-  const start = parseLocalDateKey(date)
-  const end = parseLocalDateKey(date)
-  end.setHours(23, 59, 59, 999)
-
   const { data: caregiverRows } = await supabase
     .from('baby_caregivers')
     .select('baby_id, babies(*)')
@@ -35,21 +31,18 @@ export default async function HistoryPage({
     supabase
       .from('feedings').select('*')
       .eq('baby_id', baby.id as string)
-      .gte('fed_at', start.toISOString())
-      .lte('fed_at', end.toISOString())
-      .order('fed_at', { ascending: false }),
+      .order('fed_at', { ascending: false })
+      .limit(500),
     supabase
       .from('diapers').select('*')
       .eq('baby_id', baby.id as string)
-      .gte('changed_at', start.toISOString())
-      .lte('changed_at', end.toISOString())
-      .order('changed_at', { ascending: false }),
+      .order('changed_at', { ascending: false })
+      .limit(500),
     supabase
       .from('sleeps').select('*')
       .eq('baby_id', baby.id as string)
-      .gte('started_at', start.toISOString())
-      .lte('started_at', end.toISOString())
-      .order('started_at', { ascending: false }),
+      .order('started_at', { ascending: false })
+      .limit(500),
   ])
 
   return (

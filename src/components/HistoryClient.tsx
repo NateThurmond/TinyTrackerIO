@@ -53,6 +53,10 @@ export default function HistoryClient({ tab: initialTab, date: initialDate, mode
 
   const supabase = createClient()
 
+  const dayFeedings = feedings.filter((f) => getLocalDateKey(new Date(f.fed_at)) === date)
+  const dayDiapers = diapers.filter((d) => getLocalDateKey(new Date(d.changed_at)) === date)
+  const daySleeps = sleeps.filter((s) => getLocalDateKey(new Date(s.started_at)) === date)
+
   useEffect(() => {
     if (mode !== 'chart') return
     loadTrends()
@@ -302,13 +306,13 @@ export default function HistoryClient({ tab: initialTab, date: initialDate, mode
             {tab === 'feeding' && (
               <>
                 <div className="bg-blue-50 rounded-xl px-4 py-3 flex justify-between items-center">
-                  <span className="text-sm text-blue-600 font-medium">Total today</span>
-                  <span className="text-lg font-bold text-blue-700">{formatAmount(feedings.reduce((s, f) => s + f.amount_ml, 0), unit)}</span>
+                  <span className="text-sm text-blue-600 font-medium">Total for day</span>
+                  <span className="text-lg font-bold text-blue-700">{formatAmount(dayFeedings.reduce((s, f) => s + f.amount_ml, 0), unit)}</span>
                 </div>
-                {feedings.length === 0 ? (
+                {dayFeedings.length === 0 ? (
                   <p className="text-center text-gray-400 py-8">No feedings on this day</p>
                 ) : (
-                  feedings.map((f) => (
+                  dayFeedings.map((f) => (
                     <Link key={f.id} href={`/history/feeding/${f.id}`}
                       className="flex justify-between items-center bg-white rounded-xl px-4 py-3 shadow-sm hover:shadow-md transition">
                       <div>
@@ -326,18 +330,18 @@ export default function HistoryClient({ tab: initialTab, date: initialDate, mode
               <>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-yellow-50 rounded-xl px-4 py-3 text-center">
-                    <div className="text-2xl font-bold text-yellow-600">{diapers.filter(d => d.type === 'pee' || d.type === 'mixed').length}</div>
+                    <div className="text-2xl font-bold text-yellow-600">{dayDiapers.filter(d => d.type === 'pee' || d.type === 'mixed').length}</div>
                     <div className="text-xs text-yellow-500">💧 Pees</div>
                   </div>
                   <div className="bg-amber-50 rounded-xl px-4 py-3 text-center">
-                    <div className="text-2xl font-bold text-amber-600">{diapers.filter(d => d.type === 'poop' || d.type === 'mixed').length}</div>
+                    <div className="text-2xl font-bold text-amber-600">{dayDiapers.filter(d => d.type === 'poop' || d.type === 'mixed').length}</div>
                     <div className="text-xs text-amber-500">💩 Poops</div>
                   </div>
                 </div>
-                {diapers.length === 0 ? (
+                {dayDiapers.length === 0 ? (
                   <p className="text-center text-gray-400 py-8">No diaper changes on this day</p>
                 ) : (
-                  diapers.map((d) => (
+                  dayDiapers.map((d) => (
                     <Link key={d.id} href={`/history/diaper/${d.id}`}
                       className="flex justify-between items-center bg-white rounded-xl px-4 py-3 shadow-sm hover:shadow-md transition">
                       <div className="flex items-center gap-2">
@@ -359,13 +363,13 @@ export default function HistoryClient({ tab: initialTab, date: initialDate, mode
                 <div className="bg-purple-50 rounded-xl px-4 py-3 flex justify-between items-center">
                   <span className="text-sm text-purple-600 font-medium">Total sleep</span>
                   <span className="text-lg font-bold text-purple-700">
-                    {formatDuration(sleeps.filter(s => s.ended_at).reduce((sum, s) => sum + getDurationMinutes(s.started_at, s.ended_at), 0)) || '—'}
+                    {formatDuration(daySleeps.filter(s => s.ended_at).reduce((sum, s) => sum + getDurationMinutes(s.started_at, s.ended_at), 0)) || '—'}
                   </span>
                 </div>
-                {sleeps.length === 0 ? (
+                {daySleeps.length === 0 ? (
                   <p className="text-center text-gray-400 py-8">No sleep recorded on this day</p>
                 ) : (
-                  sleeps.map((s) => (
+                  daySleeps.map((s) => (
                     <Link key={s.id} href={`/history/sleep/${s.id}`}
                       className="flex justify-between items-center bg-white rounded-xl px-4 py-3 shadow-sm hover:shadow-md transition">
                       <div>
