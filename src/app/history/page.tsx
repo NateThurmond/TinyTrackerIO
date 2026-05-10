@@ -6,7 +6,7 @@ import { getLocalDateKey, parseLocalDateKey } from '@/lib/utils'
 export default async function HistoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; date?: string }>
+  searchParams: Promise<{ tab?: string; date?: string; mode?: string }>
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -15,6 +15,7 @@ export default async function HistoryPage({
   const params = await searchParams
   const tab = (params.tab ?? 'feeding') as 'feeding' | 'diaper' | 'sleep'
   const date = params.date ?? getLocalDateKey()
+  const mode = (params.mode === 'list' ? 'list' : 'chart') as 'list' | 'chart'
 
   const start = parseLocalDateKey(date)
   const end = parseLocalDateKey(date)
@@ -55,6 +56,7 @@ export default async function HistoryPage({
     <HistoryClient
       tab={tab}
       date={date}
+      mode={mode}
       babyId={baby.id as string}
       unit={(profile.data?.unit_preference ?? 'ml') as 'ml' | 'oz'}
       feedings={feedingsRes.data ?? []}

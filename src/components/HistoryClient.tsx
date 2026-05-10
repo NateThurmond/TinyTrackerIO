@@ -21,6 +21,7 @@ import {
 interface Props {
   tab: 'feeding' | 'diaper' | 'sleep'
   date: string
+  mode: 'list' | 'chart'
   babyId: string
   unit: 'ml' | 'oz'
   feedings: Feeding[]
@@ -42,10 +43,10 @@ const SIZE_EMOJI: Record<string, string> = { small: '🟡', med: '🟠', big: '�
 const RANGE_OPTIONS = [7, 14, 30] as const
 type RangeOption = typeof RANGE_OPTIONS[number]
 
-export default function HistoryClient({ tab: initialTab, date: initialDate, unit, feedings, diapers, sleeps, babyId }: Props) {
+export default function HistoryClient({ tab: initialTab, date: initialDate, mode: initialMode, unit, feedings, diapers, sleeps, babyId }: Props) {
   const [tab, setTab] = useState(initialTab)
   const [date, setDate] = useState(initialDate)
-  const [mode, setMode] = useState<'list' | 'chart'>('chart')
+  const [mode, setMode] = useState<'list' | 'chart'>(initialMode)
   const [range, setRange] = useState<RangeOption>(14)
   const [trendData, setTrendData] = useState<TrendDay[]>([])
   const [loadingTrend, setLoadingTrend] = useState(false)
@@ -120,7 +121,7 @@ export default function HistoryClient({ tab: initialTab, date: initialDate, unit
     d.setDate(d.getDate() + days)
     const newDate = getLocalDateKey(d)
     setDate(newDate)
-    window.location.href = `/history?tab=${tab}&date=${newDate}`
+    window.location.href = `/history?tab=${tab}&date=${newDate}&mode=${mode}`
   }
 
   const isToday = date === getLocalDateKey()
@@ -144,13 +145,27 @@ export default function HistoryClient({ tab: initialTab, date: initialDate, unit
         {/* Mode toggle */}
         <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
           <button
-            onClick={() => setMode('chart')}
+            onClick={() => {
+              setMode('chart')
+              const params = new URLSearchParams(window.location.search)
+              params.set('tab', tab)
+              params.set('date', date)
+              params.set('mode', 'chart')
+              window.history.replaceState({}, '', `/history?${params.toString()}`)
+            }}
             className={`p-1.5 rounded-md transition ${mode === 'chart' ? 'bg-white shadow-sm text-rose-500' : 'text-gray-400'}`}
           >
             <BarChart2 size={16} />
           </button>
           <button
-            onClick={() => setMode('list')}
+            onClick={() => {
+              setMode('list')
+              const params = new URLSearchParams(window.location.search)
+              params.set('tab', tab)
+              params.set('date', date)
+              params.set('mode', 'list')
+              window.history.replaceState({}, '', `/history?${params.toString()}`)
+            }}
             className={`p-1.5 rounded-md transition ${mode === 'list' ? 'bg-white shadow-sm text-rose-500' : 'text-gray-400'}`}
           >
             <List size={16} />
