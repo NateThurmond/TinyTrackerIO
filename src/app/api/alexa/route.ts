@@ -157,8 +157,8 @@ export async function POST(req: NextRequest) {
   // ── LogPoop ──────────────────────────────────────────
   if (intentName === 'LogPoop') {
     // If Alexa routed a feeding-like phrase here, ask for clarification instead of logging poop.
-    const slotValues = Object.values(slots)
-      .map((s: { value?: string } | undefined) => s?.value ?? '')
+    const slotValues = Object.values(slots as Record<string, { value?: string }>)
+      .map((s) => s?.value ?? '')
       .join(' ')
       .toLowerCase()
     if (slotValues.includes('ounce') || slotValues.includes('oz') || slotValues.includes('ml') || slotValues.includes('bottle') || slotValues.includes('formula') || slotValues.includes('feed')) {
