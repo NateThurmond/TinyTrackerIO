@@ -1,0 +1,156 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "tiny tracker",
+      "modelConfiguration": {
+        "fallbackIntentSensitivity": {
+          "level": "LOW"
+        }
+      },
+      "intents": [
+        { "name": "AMAZON.CancelIntent", "samples": [] },
+        { "name": "AMAZON.HelpIntent", "samples": [] },
+        { "name": "AMAZON.StopIntent", "samples": [] },
+        { "name": "AMAZON.NavigateHomeIntent", "samples": [] },
+        { "name": "AMAZON.FallbackIntent", "samples": [] },
+
+        {
+          "name": "LogPee",
+          "slots": [{ "name": "Size", "type": "DiaperSize" }],
+          "samples": [
+            "log a pee",
+            "log pee",
+            "log a pee diaper",
+            "log a wet diaper",
+            "wet diaper",
+            "pee diaper",
+            "pee",
+            "log a {Size} pee",
+            "log a {Size} pee diaper",
+            "log a {Size} wet diaper"
+          ]
+        },
+
+        {
+          "name": "LogPoop",
+          "slots": [{ "name": "Size", "type": "DiaperSize" }],
+          "samples": [
+            "log a poop",
+            "log poop",
+            "log a poop diaper",
+            "log a dirty diaper",
+            "dirty diaper",
+            "poop diaper",
+            "poop",
+            "log a {Size} poop",
+            "log a {Size} poop diaper",
+            "log a {Size} dirty diaper"
+          ]
+        },
+
+        {
+          "name": "LogMixedDiaper",
+          "slots": [],
+          "samples": [
+            "log a mixed diaper",
+            "log mixed",
+            "mixed diaper",
+            "log pee and poop",
+            "log a poop and pee",
+            "log both"
+          ]
+        },
+
+        {
+          "name": "LogFeeding",
+          "slots": [
+            { "name": "Amount", "type": "AMAZON.NUMBER" },
+            { "name": "Unit", "type": "FeedUnit" }
+          ],
+          "samples": [
+            "log {Amount} {Unit}",
+            "log {Amount} {Unit} of formula",
+            "log a {Amount} {Unit} bottle",
+            "log a bottle of {Amount} {Unit}",
+            "log a feeding of {Amount} {Unit}",
+            "log a {Amount} {Unit} feeding",
+            "log {Amount} {Unit} formula",
+            "she had {Amount} {Unit}",
+            "he had {Amount} {Unit}",
+            "baby had {Amount} {Unit}",
+            "baby ate {Amount} {Unit}",
+            "{Amount} {Unit} bottle",
+            "{Amount} {Unit} feeding",
+            "log a bottle",
+            "log a feeding",
+            "log formula",
+            "log a formula feeding",
+            "log a formula bottle",
+            "log bottle",
+            "bottle",
+            "feeding",
+            "formula"
+          ]
+        },
+
+        {
+          "name": "StartSleep",
+          "slots": [],
+          "samples": [
+            "start sleep",
+            "log sleep",
+            "baby is sleeping",
+            "start a nap",
+            "log a nap",
+            "she fell asleep",
+            "he fell asleep",
+            "baby fell asleep",
+            "baby went to sleep",
+            "nap time",
+            "naptime",
+            "log nap",
+            "start nap"
+          ]
+        },
+
+        {
+          "name": "EndSleep",
+          "slots": [],
+          "samples": [
+            "end sleep",
+            "stop sleep",
+            "baby woke up",
+            "she woke up",
+            "he woke up",
+            "wake up",
+            "nap over",
+            "nap is over",
+            "end nap",
+            "stop nap",
+            "baby is awake",
+            "log wake up"
+          ]
+        }
+      ],
+
+      "types": [
+        {
+          "name": "DiaperSize",
+          "values": [
+            { "name": { "value": "small",     "synonyms": ["little", "tiny", "small"] } },
+            { "name": { "value": "med",        "synonyms": ["medium", "normal", "regular", "average", "med"] } },
+            { "name": { "value": "big",        "synonyms": ["large", "big", "huge"] } },
+            { "name": { "value": "ginormous",  "synonyms": ["ginormous", "enormous", "massive", "gigantic", "giant", "epic"] } }
+          ]
+        },
+        {
+          "name": "FeedUnit",
+          "values": [
+            { "name": { "value": "oz",  "synonyms": ["ounce", "ounces", "oz"] } },
+            { "name": { "value": "ml",  "synonyms": ["milliliter", "milliliters", "millilitre", "millilitres", "ml"] } }
+          ]
+        }
+      ]
+    }
+  }
+}
