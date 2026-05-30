@@ -10,8 +10,15 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "TinyTrackerIO",
   description: "Baby tracking made easy — feeding, diapers, sleep",
+  manifest: '/manifest.json',
   icons: {
     icon: '/favicon.svg',
+    apple: '/apple-touch-icon.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'TinyTracker',
   },
 };
 

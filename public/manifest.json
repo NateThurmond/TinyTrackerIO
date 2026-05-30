@@ -1,0 +1,21 @@
+{
+  "name": "TinyTrackerIO",
+  "short_name": "TinyTracker",
+  "description": "Baby tracking made easy — feeding, diapers, sleep",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fb7185",
+  "theme_color": "#fb7185",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
