@@ -502,7 +502,7 @@ export default function DashboardClient({ user, baby, profile, todayFeedings, to
                 </div>
                 {/* Quick amounts */}
                 <div className="flex gap-2 flex-wrap">
-                  {(unit === 'ml' ? [60, 90, 120, 150, 180, 210] : [2, 3, 4, 5, 6, 7]).map((v) => (
+                  {(unit === 'ml' ? [60, 90, 120, 150, 180, 210, 230, 250, 270, 290] : [2, 3, 4, 5, 6, 7]).map((v) => (
                     <button
                       key={v}
                       onClick={() => setFeedAmount(String(v))}
